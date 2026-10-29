@@ -37,3 +37,7 @@ Modo: Operate. Uso em navegador, com leitura e edição contínuas; superfícies
 - [Linear: refinamento da interface](https://linear.app/now/behind-the-latest-design-refresh): hierarquia e redução de ruído.
 
 Nenhuma dependência, fonte externa, imagem remota ou chamada de rede foi adicionada. O resultado é uma interpretação desses padrões, sem alegação de certificação WCAG ou implementação integral de Geist, Radix ou Material Design.
+
+## Extensões de operação
+
+Apresentação reduz a interface à roda, controles de giro, som e rodada, com saída acessível. Não adiciona efeitos decorativos. “Sem repetição” é configurado por roleta e mostra apenas o progresso da rodada e a ação de reiniciar. Itens já sorteados permanecem no editor com texto riscado. A exclusão usa recuperação por ação, em vez de uma confirmação bloqueante, e respeita os limites de armazenamento ao restaurar.

@@ -47,3 +47,9 @@ BASE_PATH=/spin-weel/ npm run check:dist
 ```
 
 Consulte [a auditoria de produção](docs/PRODUCTION-AUDIT.md) para as verificações e limitações do GitHub Pages. Roletas salvas no localhost precisam ser exportadas e importadas na versão pública.
+
+## Apresentação, rodadas e desfazer
+
+- O botão de apresentação oculta o editor e a navegação. Usa tela cheia quando disponível; o botão de sair ou Escape retorna ao modo normal. Funciona também com várias roletas.
+- “Sem repetição” retira os vencedores apenas da rodada. “Reiniciar rodada” restaura todas as participações; as opções e seus dados continuam no editor. A rodada é salva junto com o backup, inclusive quando resta apenas uma opção elegível.
+- Exclusões de roletas e opções podem ser desfeitas pelo aviso, pelo botão da barra ou por Ctrl/Cmd+Z fora dos campos de edição. Até 20 exclusões ficam disponíveis durante a sessão; recarregar ou fechar o aviso limpa essa recuperação.
