@@ -34,3 +34,16 @@ Os dados pertencem ao navegador e à origem onde o site é aberto. Limpar os dad
 ## Segurança
 
 Consulte [SECURITY.md](SECURITY.md) para a revisão, limites de importação e requisitos de hospedagem. A compilação gera uma CSP no HTML e `dist/_headers` para plataformas compatíveis. A aplicação limita o conjunto a 5.000 opções; backups têm limite de 5 MB. Dados inválidos no armazenamento não são sobrescritos automaticamente.
+
+## Publicação no GitHub Pages
+
+O workflow `.github/workflows/pages.yml` testa e publica a branch `main` em <https://danielx77.github.io/spin-weel/>. Em pull requests, executa somente a validação. O ambiente usa Node 22, dependências do lockfile e Actions oficiais fixadas por SHA.
+
+Para reproduzir o build do Pages:
+
+```sh
+BASE_PATH=/spin-weel/ npm run build
+BASE_PATH=/spin-weel/ npm run check:dist
+```
+
+Consulte [a auditoria de produção](docs/PRODUCTION-AUDIT.md) para as verificações e limitações do GitHub Pages. Roletas salvas no localhost precisam ser exportadas e importadas na versão pública.

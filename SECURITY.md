@@ -29,3 +29,9 @@ A política em meta funciona no HTML de produção, mas a proteção contra enqu
 A CSP de produção não é aplicada ao servidor de desenvolvimento: o recarregamento e as ferramentas do Vite têm necessidades diferentes. Não use o servidor de desenvolvimento para hospedar a versão pública.
 
 Referências: [CSP no Vite](https://vite.dev/guide/features#content-security-policy-csp), [limitação de frame-ancestors em meta, MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors).
+
+## GitHub Pages
+
+A hospedagem em `https://danielx77.github.io/spin-weel/` aplica a CSP presente no HTML e a política de referência por meta. GitHub Pages não interpreta `dist/_headers`: não se deve considerar `frame-ancestors`, `X-Frame-Options` ou `Permissions-Policy` personalizados como ativos nessa plataforma. Não há contas, credenciais ou ações financeiras no aplicativo. Se proteção por cabeçalhos próprios for requisito futuro, será necessária uma hospedagem que os suporte.
+
+As dependências são instaladas pelo lockfile; Actions oficiais ficam fixadas por SHA. A publicação só ocorre após testes, verificação de vulnerabilidades graves e validação dos assets. Permissões de publicação e OIDC ficam restritas ao job de deploy, que depende do build e só executa na `main`.
