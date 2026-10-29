@@ -3,6 +3,7 @@ import solid from "vite-plugin-solid";
 import tailwindcss from "@tailwindcss/vite";
 import { contentSecurityPolicy, securityHeaders } from "./security-policy.mjs";
 export default defineConfig({
+  base: process.env.BASE_PATH || "/",
   plugins: [
     solid(),
     tailwindcss(),

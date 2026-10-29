@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import { readFile, readdir } from "node:fs/promises";
+import { join } from "node:path";
+const html = (await readFile("dist/index.html", "utf8")).replaceAll(
+  "&#39;",
+  "'",
+);
+const base = process.env.BASE_PATH || "/";
+assert.match(html, /http-equiv="Content-Security-Policy"/);
+assert.match(html, /script-src 'self'/);
+assert.match(html, /name="referrer" content="no-referrer"/);
+const assets = [...html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map(
+  (match) => match[1],
+);
+assert.ok(assets.some((asset) => asset.endsWith(".js")));
+assert.ok(assets.some((asset) => asset.endsWith(".css")));
+for (const asset of assets) {
+  assert.ok(asset.startsWith(base), `Asset fora da base: ${asset}`);
+  const relative = asset.slice(base.length);
+  assert.ok(!relative.includes(".."));
+  await readFile(join("dist", relative));
+}
+async function inspect(directory) {
+  for (const file of await readdir(directory, { withFileTypes: true })) {
+    assert.ok(!file.isSymbolicLink(), "Link simbólico no artefato");
+    const path = join(directory, file.name);
+    if (file.isDirectory()) await inspect(path);
+    else
+      assert.ok(
+        !/\.map$|^\.env|\.(?:pem|key)$/.test(file.name),
+        `Arquivo indevido: ${path}`,
+      );
+  }
+}
+await inspect("dist");
+console.log(`Artefato validado: ${assets.length} assets em ${base}`);
