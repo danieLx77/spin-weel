@@ -43,9 +43,11 @@ export function ActionIcon(props: {
     | "upload"
     | "expand"
     | "collapse"
-    | "undo";
+    | "undo"
+    | "settings";
 }) {
   const paths = {
+    settings: "M4 7h16M4 17h16M8 4v6m8 4v6",
     expand: "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5",
     collapse: "M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5",
     undo: "M9 4 4 9l5 5M4 9h10a6 6 0 0 1 0 12h-2",

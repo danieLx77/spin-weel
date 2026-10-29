@@ -2,6 +2,7 @@ import { render } from "solid-js/web";
 import {
   createSignal,
   createEffect,
+  createMemo,
   onCleanup,
   onMount,
   For,
@@ -11,18 +12,33 @@ import {
 import {
   optionColors,
   randomIndex,
-  parseBackup,
   MAX_BACKUP_BYTES,
   MAX_TOTAL_OPTIONS,
   totalOptions,
 } from "./logic.mjs";
 import "./style.css";
+import {
+  readSettings,
+  parseWorkspace,
+  createShareLink,
+  parseSharedWheel,
+  parseCSV,
+  duplicateIds,
+  normalize,
+} from "./extras.mjs";
+import { SettingsPanel } from "./SettingsPanel";
 import { availableOptions, canSpin, markDrawn, resetRound } from "./round.mjs";
 import { RoundControls } from "./RoundControls";
 import { writeSnapshot, StorageConflictError } from "./persistence.mjs";
-import { setWheelSound, disposeWheelSound, prepareWheelSound } from "./sound";
+import {
+  setWheelSound,
+  disposeWheelSound,
+  prepareWheelSound,
+  setWheelVolume,
+} from "./sound";
 import { WheelIcon, GridIcon, ActionIcon } from "./Icons";
 import { Wheel as WheelVisual, type WheelHandle } from "./Wheel";
+type Session = { id: string; name: string; wheelIds: string[] };
 type Option = { id: string; label: string; color: string; drawn?: boolean };
 type Wheel = {
   id: string;
@@ -68,13 +84,33 @@ function App() {
       localStorage.setItem("volta:sound", value ? "on" : "off");
     } catch {}
   });
+  let preferences = readSettings(null);
+  try {
+    preferences = readSettings(localStorage.getItem("volta:settings"));
+  } catch {}
+  const [duration, setDuration] = createSignal(preferences.duration);
+  const [volume, setVolume] = createSignal(preferences.volume);
+  createEffect(() => {
+    setWheelVolume(volume());
+    try {
+      localStorage.setItem(
+        "volta:settings",
+        JSON.stringify({ duration: duration(), volume: volume() }),
+      );
+    } catch {}
+  });
+  let initialSessions: Session[] = [];
   let initial: Wheel[];
   let initialError = "";
   let originalData = "";
   try {
     const saved = localStorage.getItem("volta:v1");
     originalData = saved || "";
-    initial = saved ? parseBackup(saved) : defaults();
+    if (saved) {
+      const workspace = parseWorkspace(saved);
+      initial = workspace.wheels;
+      initialSessions = workspace.sessions as Session[];
+    } else initial = defaults();
   } catch {
     initial = defaults();
     initialError =
@@ -83,6 +119,8 @@ function App() {
   const [storageBlocked, setStorageBlocked] = createSignal(
     Boolean(initialError),
   );
+  const [sessions, setSessions] = createSignal<Session[]>(initialSessions);
+  const [sessionName, setSessionName] = createSignal("");
   const [wheels, setWheels] = createSignal<Wheel[]>(initial);
   const [activeId, setActiveId] = createSignal(initial[0]?.id || "");
   const active = () => wheels().find((w) => w.id === activeId());
@@ -106,6 +144,25 @@ function App() {
   let singleWheel: WheelHandle;
   const selectedWheels = () =>
     selectedIds().filter((id) => wheels().some((w) => w.id === id));
+  const [search, setSearch] = createSignal("");
+  const [onlyDuplicates, setOnlyDuplicates] = createSignal(false);
+  const [picking, setPicking] = createSignal(false);
+  const [selectedOptions, setSelectedOptions] = createSignal<string[]>([]);
+  const [incoming, setIncoming] = createSignal<Wheel>();
+  const duplicateOptions = createMemo(() =>
+    duplicateIds(active()?.options || []),
+  );
+  const query = createMemo(() => normalize(search()));
+  const matchesOption = (option: Option) =>
+    (!query() || normalize(option.label).includes(query())) &&
+    (!onlyDuplicates() || duplicateOptions().has(option.id));
+  createEffect(() => {
+    activeId();
+    setSearch("");
+    setOnlyDuplicates(false);
+    setPicking(false);
+    setSelectedOptions([]);
+  });
   const [presentation, setPresentation] = createSignal(false);
   type UndoEntry = { label: string; restore: () => boolean };
   const [undoStack, setUndoStack] = createSignal<UndoEntry[]>([]);
@@ -264,6 +321,7 @@ function App() {
   };
   const snapshot = () => ({
     version: 1,
+    sessions: sessions(),
     wheels: wheels().map((w) => ({
       ...w,
       name: w.name.trim() || "Sem título",
@@ -274,15 +332,15 @@ function App() {
     })),
   });
   let lastStored: string | null = originalData || null;
+  let persistedSnapshot: string | null =
+    originalData && !initialError ? JSON.stringify(snapshot()) : null;
   const persist = () => {
     if (storageBlocked()) return;
     try {
-      lastStored = writeSnapshot(
-        localStorage,
-        "volta:v1",
-        lastStored,
-        JSON.stringify(snapshot()),
-      );
+      const data = JSON.stringify(snapshot());
+      if (data === persistedSnapshot) return;
+      lastStored = writeSnapshot(localStorage, "volta:v1", lastStored, data);
+      persistedSnapshot = data;
       setSaveError(false);
     } catch (error) {
       setSaveError(true);
@@ -300,11 +358,26 @@ function App() {
     onCleanup(() => clearTimeout(t));
   });
   onMount(() => {
+    const openShare = () => {
+      try {
+        const wheel = parseSharedWheel(location.hash);
+        if (wheel) {
+          setIncoming(wheel);
+          history.replaceState(null, "", location.pathname + location.search);
+        }
+      } catch (error) {
+        notify(error instanceof Error ? error.message : "Link inválido.");
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    };
+    openShare();
+    window.addEventListener("hashchange", openShare);
     const media = matchMedia("(prefers-reduced-motion: reduce)");
     setReduced(media.matches);
     const change = () => setReduced(media.matches);
     media.addEventListener("change", change);
     const enter = (e: KeyboardEvent) => {
+      if (incoming()) return;
       if (e.key === "Escape" && presentation() && !winner()) {
         e.preventDefault();
         exitPresentation();
@@ -336,7 +409,12 @@ function App() {
       )
         return;
       const el = e.target as HTMLElement;
-      if (el.closest("input,textarea,button,a,[role=dialog]")) return;
+      if (
+        el.closest(
+          "input,textarea,select,button,a,summary,dialog,[role=dialog],[contenteditable=true]",
+        )
+      )
+        return;
       e.preventDefault();
       if (mode() === "multi") spinAll();
       else void spin();
@@ -352,6 +430,7 @@ function App() {
     document.addEventListener("visibilitychange", flushWhenHidden);
     window.addEventListener("keydown", enter);
     onCleanup(() => {
+      window.removeEventListener("hashchange", openShare);
       media.removeEventListener("change", change);
       window.removeEventListener("keydown", enter);
       document.removeEventListener("fullscreenchange", fullscreenChange);
@@ -513,13 +592,17 @@ function App() {
     try {
       if (f.size > MAX_BACKUP_BYTES)
         throw Error("O arquivo deve ter até 5 MB.");
-      const loaded = parseBackup(await f.text()) as Wheel[];
+      const workspace = parseWorkspace(await f.text());
+      const loaded = workspace.wheels as Wheel[];
+      if (sessions().length + workspace.sessions.length > 20)
+        throw Error("Limite de 20 sessões atingido.");
       if (totalOptions(wheels()) + totalOptions(loaded) > MAX_TOTAL_OPTIONS)
         throw Error("O conjunto deve ter até 5.000 opções.");
       if (wheels().length + loaded.length > 100)
         throw Error("O total deve ser de até 100 roletas.");
       if (spinning()) throw Error("Espere o giro terminar para importar.");
       setWheels([...wheels(), ...loaded]);
+      setSessions((all) => [...all, ...(workspace.sessions as Session[])]);
       if (loaded[0]) select(loaded[0].id);
       notify(`${loaded.length} roleta(s) importada(s).`);
     } catch (err) {
@@ -533,6 +616,158 @@ function App() {
       [opts[index], opts[index + delta]] = [opts[index + delta], opts[index]];
       return { ...w, options: opts };
     });
+  let csvInput!: HTMLInputElement;
+  const importCSV = async (e: Event) => {
+    const input = e.target as HTMLInputElement,
+      f = input.files?.[0],
+      id = activeId();
+    if (!f) return;
+    try {
+      if (f.size > MAX_BACKUP_BYTES) throw Error("CSV deve ter até 5 MB.");
+      const rows = parseCSV(await f.text());
+      const wheel = wheels().find((w) => w.id === id);
+      if (spinning() || id !== activeId())
+        throw Error("Espere o giro terminar e tente novamente.");
+      if (
+        !wheel ||
+        wheel.options.length + rows.length > 500 ||
+        totalOptions(wheels()) + rows.length > MAX_TOTAL_OPTIONS
+      )
+        throw Error("Limite de opções atingido.");
+      const colors = optionColors(rows.length, [
+        ...wheel.options.map((o) => o.color),
+        ...rows.filter((o) => o.color).map((o) => o.color as string),
+      ]);
+      update((w) => ({
+        ...w,
+        options: [
+          ...w.options,
+          ...rows.map((row, i) => ({
+            id: uid(),
+            label: row.label as string,
+            color: row.color || colors[i],
+          })),
+        ],
+      }));
+      notify(`${rows.length} opções importadas.`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "CSV inválido.");
+    }
+    input.value = "";
+  };
+  const removeSelected = () => {
+    if (spinning()) return;
+    const w = active();
+    if (!w) return;
+    const ids = new Set(selectedOptions());
+    const removed = w.options
+      .map((option, index) => ({ option, index }))
+      .filter((item) => ids.has(item.option.id));
+    if (!removed.length) return;
+    setWheels((all) =>
+      all.map((x) =>
+        x.id === w.id
+          ? { ...x, options: x.options.filter((o) => !ids.has(o.id)) }
+          : x,
+      ),
+    );
+    setSelectedOptions([]);
+    rememberDeletion({
+      label:
+        removed.length === 1
+          ? "Opção excluída."
+          : `${removed.length} opções excluídas.`,
+      restore: () => {
+        const current = wheels().find((x) => x.id === w.id);
+        if (
+          !current ||
+          current.options.length + removed.length > 500 ||
+          totalOptions(wheels()) + removed.length > MAX_TOTAL_OPTIONS
+        ) {
+          notify("Não há espaço para restaurar as opções.");
+          return false;
+        }
+        const options = [...current.options];
+        for (const item of removed)
+          options.splice(Math.min(item.index, options.length), 0, item.option);
+        setWheels((all) =>
+          all.map((x) => (x.id === w.id ? { ...x, options } : x)),
+        );
+        return true;
+      },
+    });
+  };
+  const saveSession = () => {
+    const name = sessionName().trim(),
+      ids = selectedWheels();
+    if (!name || !ids.length) {
+      notify("Informe um nome e selecione pelo menos uma roleta.");
+      return;
+    }
+    if (sessions().length >= 20) {
+      notify("Limite de 20 sessões atingido.");
+      return;
+    }
+    setSessions((all) => [
+      ...all,
+      { id: uid(), name: name.slice(0, 80), wheelIds: [...ids] },
+    ]);
+    setSessionName("");
+  };
+  const loadSession = (session: Session) => {
+    if (spinning()) return;
+    const ids = session.wheelIds.filter((id) =>
+      wheels().some((w) => w.id === id),
+    );
+    if (!ids.length) {
+      notify("As roletas desta sessão foram excluídas.");
+      return;
+    }
+    setSelectedIds(ids);
+    setMultiResults({});
+    if (ids.length !== session.wheelIds.length)
+      notify("Algumas roletas da sessão foram excluídas.");
+  };
+  const deleteSession = (session: Session) => {
+    if (spinning()) return;
+    const index = sessions().findIndex((s) => s.id === session.id);
+    setSessions((all) => all.filter((s) => s.id !== session.id));
+    rememberDeletion({
+      label: "Sessão excluída.",
+      restore: () => {
+        if (sessions().length >= 20) {
+          notify("Limite de sessões atingido.");
+          return false;
+        }
+        setSessions((all) => [
+          ...all.slice(0, index),
+          session,
+          ...all.slice(index),
+        ]);
+        return true;
+      },
+    });
+  };
+  const shareWheel = async () => {
+    const w = active();
+    if (!w) return;
+    try {
+      const url = createShareLink(w, location.href);
+      try {
+        await navigator.clipboard.writeText(url);
+        notify("Link copiado.");
+      } catch {
+        notify("Copie o link no campo abaixo.");
+      }
+      return url;
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível criar o link.",
+      );
+    }
+  };
   const duplicates = () => {
     const labels =
       active()?.options.map((o) => o.label.trim().toLowerCase()) || [];
@@ -661,6 +896,18 @@ function App() {
             </button>
           </div>
           <div class="view-actions">
+            <SettingsPanel
+              duration={duration()}
+              volume={volume()}
+              busy={spinning()}
+              updateBlocked={saveError() || storageBlocked()}
+              canShare={mode() === "single" && Boolean(active())}
+              onDuration={setDuration}
+              onVolume={setVolume}
+              onShare={shareWheel}
+              onMessage={notify}
+            />
+
             <Show when={undoStack().length}>
               <button
                 class="icon-button"
@@ -786,6 +1033,7 @@ function App() {
                           options={availableOptions(w())}
                           name={w().name}
                           reduced={reduced()}
+                          duration={duration()}
                           register={(handle) => (singleWheel = handle)}
                         />
                         <div class="spin-controls">
@@ -980,18 +1228,123 @@ function App() {
                                   OPÇÕES DA ROLETA
                                 </label>
                               </div>
+                              <input
+                                class="search-options"
+                                aria-label="Buscar opções"
+                                placeholder="Buscar opções"
+                                value={search()}
+                                onInput={(e) =>
+                                  setSearch(e.currentTarget.value)
+                                }
+                              />
+                              <details class="list-tools">
+                                <summary>Ferramentas da lista</summary>
+                                <div>
+                                  <button
+                                    type="button"
+                                    class="secondary-button"
+                                    disabled={spinning()}
+                                    onClick={() => csvInput.click()}
+                                  >
+                                    Importar CSV
+                                  </button>
+                                  <input
+                                    ref={csvInput}
+                                    type="file"
+                                    accept=".csv,text/csv"
+                                    class="hidden"
+                                    onChange={importCSV}
+                                  />
+                                  <label>
+                                    <input
+                                      type="checkbox"
+                                      checked={onlyDuplicates()}
+                                      onChange={(e) =>
+                                        setOnlyDuplicates(
+                                          e.currentTarget.checked,
+                                        )
+                                      }
+                                    />
+                                    Apenas duplicados
+                                  </label>
+                                  <button
+                                    type="button"
+                                    class="secondary-button"
+                                    disabled={spinning()}
+                                    onClick={() => {
+                                      setPicking(!picking());
+                                      setSelectedOptions([]);
+                                    }}
+                                  >
+                                    {picking()
+                                      ? "Cancelar seleção"
+                                      : "Selecionar opções"}
+                                  </button>
+                                  <Show when={picking()}>
+                                    <button
+                                      type="button"
+                                      class="secondary-button"
+                                      disabled={spinning()}
+                                      onClick={() =>
+                                        setSelectedOptions(
+                                          w()
+                                            .options.filter(matchesOption)
+                                            .map((o) => o.id),
+                                        )
+                                      }
+                                    >
+                                      Selecionar visíveis
+                                    </button>
+                                    <button
+                                      type="button"
+                                      class="secondary-button danger"
+                                      disabled={
+                                        spinning() || !selectedOptions().length
+                                      }
+                                      onClick={removeSelected}
+                                    >
+                                      Excluir ({selectedOptions().length})
+                                    </button>
+                                  </Show>
+                                </div>
+                              </details>
+                              <Show when={!w().options.some(matchesOption)}>
+                                <p class="muted">Nenhuma opção encontrada.</p>
+                              </Show>
                               <fieldset disabled={spinning()}>
                                 <div class="option-list">
                                   <Index each={w().options}>
                                     {(o, i) => (
                                       <div
                                         class="option-row"
+                                        hidden={!matchesOption(o())}
                                         classList={{
                                           "option-drawn": Boolean(
                                             w().noRepeat && o().drawn,
                                           ),
                                         }}
                                       >
+                                        <Show when={picking()}>
+                                          <label class="selection-cell">
+                                            <input
+                                              class="option-select"
+                                              type="checkbox"
+                                              aria-label={`Selecionar ${o().label}`}
+                                              checked={selectedOptions().includes(
+                                                o().id,
+                                              )}
+                                              onChange={(e) =>
+                                                setSelectedOptions((ids) =>
+                                                  e.currentTarget.checked
+                                                    ? [...ids, o().id]
+                                                    : ids.filter(
+                                                        (id) => id !== o().id,
+                                                      ),
+                                                )
+                                              }
+                                            />
+                                          </label>
+                                        </Show>
                                         <div class="reorder">
                                           <button
                                             aria-label={`Mover ${o().label} para cima`}
@@ -1180,6 +1533,53 @@ function App() {
               {spinning() ? "Roletas girando…" : "Girar todas"}
             </button>
           </section>
+          <details class="sessions-panel">
+            <summary>Sessões</summary>
+            <div class="session-save">
+              <input
+                aria-label="Nome da sessão"
+                placeholder="Nome da sessão"
+                maxLength={80}
+                value={sessionName()}
+                onInput={(e) => setSessionName(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !spinning()) {
+                    e.preventDefault();
+                    saveSession();
+                  }
+                }}
+              />
+              <button
+                class="secondary-button"
+                disabled={spinning() || !selectedWheels().length}
+                onClick={saveSession}
+              >
+                Salvar seleção
+              </button>
+            </div>
+            <For each={sessions()}>
+              {(session) => (
+                <div class="session-row">
+                  <button
+                    class="session-load"
+                    disabled={spinning()}
+                    onClick={() => loadSession(session)}
+                  >
+                    {session.name}
+                  </button>
+                  <button
+                    class="icon-button delete-button"
+                    aria-label={`Excluir sessão ${session.name}`}
+                    title="Excluir sessão"
+                    disabled={spinning()}
+                    onClick={() => deleteSession(session)}
+                  >
+                    <ActionIcon name="close" />
+                  </button>
+                </div>
+              )}
+            </For>
+          </details>
           <div
             class="multi-picker"
             role="group"
@@ -1239,6 +1639,7 @@ function App() {
                       options={availableOptions(wheel())}
                       name={wheel().name}
                       reduced={reduced()}
+                      duration={duration()}
                       register={(handle) => controllers.set(id, handle)}
                     />
                     <div class="multi-result" role="status">
@@ -1283,6 +1684,60 @@ function App() {
           </Show>
         </Show>
       </main>
+      <Show when={incoming()}>
+        {(shared) => (
+          <dialog
+            class="share-dialog"
+            ref={(el) =>
+              queueMicrotask(() => {
+                if (el.isConnected) el.showModal();
+              })
+            }
+            onCancel={(e) => {
+              e.preventDefault();
+              setIncoming(undefined);
+            }}
+            aria-labelledby="share-title"
+          >
+            <h2 id="share-title">Adicionar roleta compartilhada?</h2>
+            <h3>{shared().name}</h3>
+            <p class="muted">{shared().options.length} opções</p>
+            <ul>
+              <For each={shared().options.slice(0, 12)}>
+                {(o) => <li>{o.label}</li>}
+              </For>
+            </ul>
+            <div class="dialog-actions">
+              <button
+                class="secondary-button"
+                onClick={() => setIncoming(undefined)}
+              >
+                Cancelar
+              </button>
+              <button
+                class="primary"
+                disabled={spinning()}
+                onClick={() => {
+                  const w = shared();
+                  if (
+                    wheels().length >= 100 ||
+                    totalOptions(wheels()) + w.options.length >
+                      MAX_TOTAL_OPTIONS
+                  ) {
+                    notify("Limite de roletas ou opções atingido.");
+                    return;
+                  }
+                  setWheels((all) => [...all, w]);
+                  setIncoming(undefined);
+                  select(w.id);
+                }}
+              >
+                Adicionar roleta
+              </button>
+            </div>
+          </dialog>
+        )}
+      </Show>
       <Show when={undoStack().at(-1)}>
         {(entry) => (
           <div class="undo-toast" role="status">

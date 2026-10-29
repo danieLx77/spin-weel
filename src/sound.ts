@@ -3,13 +3,18 @@ let context: AudioContext | undefined;
 let output: GainNode | undefined;
 let buffer: AudioBuffer | undefined;
 let enabled = true;
+let volume = 0.7;
 let lastClick = -Infinity;
 
 export function setWheelSound(value: boolean) {
   enabled = value;
   if (context && output) {
     output.gain.cancelScheduledValues(context.currentTime);
-    output.gain.setTargetAtTime(value ? 0.28 : 0, context.currentTime, 0.008);
+    output.gain.setTargetAtTime(
+      value ? volume * 0.4 : 0,
+      context.currentTime,
+      0.008,
+    );
   }
 }
 
@@ -19,7 +24,7 @@ export function prepareWheelSound() {
     if (!context) {
       context = new AudioContext();
       output = context.createGain();
-      output.gain.value = enabled ? 0.28 : 0;
+      output.gain.value = enabled ? volume * 0.4 : 0;
       output.connect(context.destination);
       const length = Math.ceil(context.sampleRate * 0.045);
       buffer = context.createBuffer(1, length, context.sampleRate);
@@ -73,4 +78,9 @@ export function disposeWheelSound() {
   output = undefined;
   buffer = undefined;
   lastClick = -Infinity;
+}
+
+export function setWheelVolume(value: number) {
+  volume = Math.max(0, Math.min(1, value));
+  setWheelSound(enabled);
 }

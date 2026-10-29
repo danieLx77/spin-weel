@@ -7,6 +7,7 @@ export function Wheel(props: {
   options: WheelOption[];
   name: string;
   reduced: boolean;
+  duration: number;
   register: (handle: WheelHandle) => void;
 }) {
   let canvas!: HTMLCanvasElement;
@@ -88,7 +89,7 @@ export function Wheel(props: {
         busy = true;
         const from = angle,
           to = targetRotation(from, index, props.options.length);
-        const duration = props.reduced ? 0 : 9000;
+        const duration = props.reduced ? 0 : props.duration;
         const slice = 360 / props.options.length;
         let previousBoundary = Math.floor(from / slice),
           lastHit = -1000;
