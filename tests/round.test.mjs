@@ -52,7 +52,7 @@ test("reiniciar a rodada restaura todos sem perder histórico ou cores", () => {
 test("modo normal mantém chance de repetição e exige duas opções", () => {
   const w = { ...wheel(), noRepeat: false };
   assert.equal(markDrawn(w, "a"), w);
-  assert.equal(availableOptions(w), w.options);
+  assert.deepEqual(availableOptions(w), w.options);
   assert.equal(canSpin({ ...w, options: [w.options[0]] }), false);
   assert.equal(
     canSpin({ ...w, noRepeat: true, options: [w.options[0]] }),
@@ -76,4 +76,33 @@ test("backup preserva rodada com IDs regenerados e suporta arquivos antigos", ()
   )[0];
   assert.equal(old.noRepeat, false);
   assert.equal(old.options[0].drawn, false);
+});
+
+test("opções desativadas ficam fora de todos os modos sem perder dados", () => {
+  const original = wheel();
+  const w = {
+    ...original,
+    options: original.options.map((o) => ({ ...o, disabled: o.id !== "b" })),
+  };
+  assert.deepEqual(
+    availableOptions(w).map((o) => o.id),
+    ["b"],
+  );
+  assert.equal(canSpin(w), true);
+  assert.equal(canSpin({ ...w, noRepeat: false }), false);
+  const reset = resetRound(markDrawn(w, "b"));
+  assert.deepEqual(
+    reset.options.map((o) => o.disabled),
+    [true, false, true],
+  );
+  assert.deepEqual(
+    availableOptions(reset).map((o) => o.id),
+    ["b"],
+  );
+  const saved = parseBackup(JSON.stringify({ version: 1, wheels: [w] }))[0];
+  assert.deepEqual(
+    saved.options.map((o) => o.disabled),
+    [true, false, true],
+  );
+  assert.equal(saved.options.length, 3);
 });

@@ -83,7 +83,11 @@ export function createShareLink(wheel, href) {
       {
         name: wheel.name,
         noRepeat: wheel.noRepeat === true,
-        options: wheel.options.map((o) => ({ label: o.label, color: o.color })),
+        options: wheel.options.map((o) => ({
+          label: o.label,
+          color: o.color,
+          disabled: o.disabled === true,
+        })),
         history: [],
       },
     ],

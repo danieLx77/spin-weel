@@ -2010,3 +2010,135 @@ summary:focus-visible {
     max-height: calc(100dvh - 112px);
   }
 }
+
+.option-input {
+  min-width: 0;
+}
+.toggle-option {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 40px;
+  color: #52525b;
+  border-radius: 4px;
+}
+.toggle-option svg {
+  width: 18px;
+  height: 18px;
+}
+.toggle-option:hover {
+  background: #f4f4f5;
+  color: #18181b;
+}
+.option-disabled {
+  background: #f4f4f5;
+}
+.option-disabled .option-input {
+  color: #71717a;
+}
+.option-disabled .color-input {
+  opacity: 0.45;
+}
+.batch-controls {
+  order: 2;
+  margin: 0 20px;
+  border-bottom: 1px solid var(--line);
+  padding: 4px 0 8px;
+  font-size: 13px;
+}
+.batch-controls summary {
+  cursor: pointer;
+  color: #3f3f46;
+  padding: 8px 0;
+}
+.batch-setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.batch-setup input {
+  width: 72px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.batch-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 12px;
+}
+.batch-progress span {
+  overflow-wrap: anywhere;
+}
+.results-actions {
+  margin: 12px 0 20px;
+}
+.results-actions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.copy-results {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.copy-results textarea {
+  width: 100%;
+  min-height: 100px;
+  border: 1px solid var(--line);
+  padding: 10px;
+  border-radius: 6px;
+  resize: vertical;
+}
+.batch-winners {
+  list-style: decimal;
+  margin: 20px 0;
+  padding-left: 28px;
+  max-height: 45dvh;
+  overflow-y: auto;
+}
+.batch-winners li {
+  padding: 8px 4px;
+  overflow-wrap: anywhere;
+}
+.batch-winners li::marker {
+  color: #71717a;
+  font-variant-numeric: tabular-nums;
+}
+.result-modal .results-actions > div {
+  justify-content: center;
+}
+.presentation .batch-controls:not([data-running="true"]) {
+  display: none;
+}
+@media (max-width: 640px) {
+  .option-row .toggle-option {
+    grid-column: 1;
+    grid-row: 2;
+    width: 44px;
+    height: 44px;
+  }
+  .option-row .reorder {
+    grid-column: 2/-1;
+  }
+  .batch-controls {
+    margin-inline: 16px;
+  }
+}
+
+.spin-controls p {
+  display: block;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}

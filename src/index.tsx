@@ -26,8 +26,16 @@ import {
   duplicateIds,
   normalize,
 } from "./extras.mjs";
+import { drawSequence } from "./results.mjs";
+import { ResultsActions, type SavedResult } from "./ResultsActions";
 import { SettingsPanel } from "./SettingsPanel";
-import { availableOptions, canSpin, markDrawn, resetRound } from "./round.mjs";
+import {
+  activeOptions,
+  availableOptions,
+  canSpin,
+  markDrawn,
+  resetRound,
+} from "./round.mjs";
 import { RoundControls } from "./RoundControls";
 import { writeSnapshot, StorageConflictError } from "./persistence.mjs";
 import {
@@ -39,7 +47,13 @@ import {
 import { WheelIcon, GridIcon, ActionIcon } from "./Icons";
 import { Wheel as WheelVisual, type WheelHandle } from "./Wheel";
 type Session = { id: string; name: string; wheelIds: string[] };
-type Option = { id: string; label: string; color: string; drawn?: boolean };
+type Option = {
+  id: string;
+  label: string;
+  color: string;
+  drawn?: boolean;
+  disabled?: boolean;
+};
 type Wheel = {
   id: string;
   name: string;
@@ -163,6 +177,28 @@ function App() {
     setPicking(false);
     setSelectedOptions([]);
   });
+  const [batchCount, setBatchCount] = createSignal("3");
+  const [batchRunning, setBatchRunning] = createSignal(false);
+  const [batchStopped, setBatchStopped] = createSignal(false);
+  const [batchResults, setBatchResults] = createSignal<SavedResult[]>([]);
+  const [batchSummary, setBatchSummary] = createSignal(false);
+  const [batchPool, setBatchPool] = createSignal<Option[]>();
+  const [batchTarget, setBatchTarget] = createSignal(0);
+  let batchPause: ReturnType<typeof setTimeout>;
+  let resolvePause: (() => void) | undefined;
+  let disposed = false;
+  createEffect(() => {
+    activeId();
+    setBatchResults([]);
+    setBatchSummary(false);
+  });
+  createEffect(() => {
+    const available = active() ? availableOptions(active()!).length : 0;
+    if (!spinning())
+      setBatchCount((value) =>
+        String(Math.min(Math.max(1, available), Number(value) || 3)),
+      );
+  });
   const [presentation, setPresentation] = createSignal(false);
   type UndoEntry = { label: string; restore: () => boolean };
   const [undoStack, setUndoStack] = createSignal<UndoEntry[]>([]);
@@ -208,16 +244,20 @@ function App() {
       setMultiResults((old) => ({ ...old, [id]: "" }));
     }
   };
-  const recordResult = (id: string, selected: Option) =>
+  const recordResult = (
+    id: string,
+    selected: Option,
+    date = new Date().toISOString(),
+  ) =>
     setWheels((all) =>
       all.map((w) =>
         w.id === id
           ? {
               ...markDrawn(w, selected.id),
-              history: [
-                { label: selected.label, date: new Date().toISOString() },
-                ...w.history,
-              ].slice(0, 20),
+              history: [{ label: selected.label, date }, ...w.history].slice(
+                0,
+                20,
+              ),
             }
           : w,
       ),
@@ -377,7 +417,7 @@ function App() {
     const change = () => setReduced(media.matches);
     media.addEventListener("change", change);
     const enter = (e: KeyboardEvent) => {
-      if (incoming()) return;
+      if (incoming() || batchSummary()) return;
       if (e.key === "Escape" && presentation() && !winner()) {
         e.preventDefault();
         exitPresentation();
@@ -439,6 +479,9 @@ function App() {
     });
   });
   onCleanup(() => {
+    disposed = true;
+    clearTimeout(batchPause);
+    resolvePause?.();
     clearTimeout(noticeTimer);
     disposeWheelSound();
   });
@@ -474,6 +517,76 @@ function App() {
     }
     setSpinning(false);
   };
+  const spinBatch = async () => {
+    const w = active(),
+      count = Number(batchCount());
+    if (!w || spinning() || !singleWheel) return;
+    if (
+      !Number.isSafeInteger(count) ||
+      count < 1 ||
+      count > availableOptions(w).length
+    ) {
+      notify("Escolha uma quantidade válida de vencedores.");
+      return;
+    }
+    setWinner(undefined);
+    setBatchSummary(false);
+    setBatchResults([]);
+    setBatchTarget(count);
+    setBatchStopped(false);
+    setBatchRunning(true);
+    setSpinning(true);
+    prepareWheelSound();
+    try {
+      await drawSequence({
+        wheel: w,
+        count,
+        shouldStop: () => batchStopped() || disposed,
+        spin: async (pool: Option[], index: number) => {
+          setBatchPool(pool);
+          return singleWheel.spin(index);
+        },
+        onResult: (result: Option & { date: string }) => {
+          recordResult(w.id, result, result.date);
+          setBatchResults((all) => [...all, result]);
+        },
+        between: () =>
+          new Promise<void>((resolve) => {
+            resolvePause = resolve;
+            batchPause = setTimeout(
+              () => {
+                resolvePause = undefined;
+                resolve();
+              },
+              reduced() ? 0 : 700,
+            );
+          }),
+      });
+    } catch {
+      notify(
+        "Não foi possível concluir o sorteio. Os resultados concluídos foram preservados.",
+      );
+    } finally {
+      if (!disposed) {
+        setBatchPool(undefined);
+        setBatchRunning(false);
+        setSpinning(false);
+        if (batchResults().length) setBatchSummary(true);
+      }
+    }
+  };
+  const stopBatch = () => {
+    setBatchStopped(true);
+    clearTimeout(batchPause);
+    resolvePause?.();
+    resolvePause = undefined;
+  };
+  const closeBatchSummary = () => {
+    setBatchSummary(false);
+    queueMicrotask(() =>
+      document.querySelector<HTMLButtonElement>(".spin-button")?.focus(),
+    );
+  };
   const closeResult = () => {
     setWinner(undefined);
     queueMicrotask(() =>
@@ -490,7 +603,7 @@ function App() {
     if (e.key === "Tab") {
       const controls = (
         e.currentTarget as HTMLElement
-      ).querySelectorAll<HTMLButtonElement>("button");
+      ).querySelectorAll<HTMLElement>("button,textarea");
       const first = controls[0],
         last = controls[controls.length - 1];
       if (e.shiftKey && document.activeElement === first) {
@@ -1030,7 +1143,7 @@ function App() {
                     <div class="workspace-grid">
                       <section class="play-card">
                         <WheelVisual
-                          options={availableOptions(w())}
+                          options={batchPool() ?? availableOptions(w())}
                           name={w().name}
                           reduced={reduced()}
                           duration={duration()}
@@ -1053,22 +1166,86 @@ function App() {
                           <Show when={!canSpin(w())}>
                             <p>
                               {w().noRepeat
-                                ? w().options.length
-                                  ? "Rodada concluída."
-                                  : "Adicione uma opção para girar."
-                                : "Adicione pelo menos 2 opções para girar."}
+                                ? activeOptions(w()).length
+                                  ? "Ative uma opção ou reinicie a rodada."
+                                  : "Ative ou adicione uma opção para girar."
+                                : "Ative ou adicione pelo menos 2 opções para girar."}
                             </p>
                           </Show>
                         </div>
                         <RoundControls
                           enabled={Boolean(w().noRepeat)}
                           remaining={availableOptions(w()).length}
-                          total={w().options.length}
+                          total={activeOptions(w()).length}
                           used={w().options.some((o) => o.drawn)}
                           busy={spinning()}
                           onToggle={() => changeRound(w().id)}
                           onReset={() => changeRound(w().id, true)}
                         />
+                        <details
+                          data-running={batchRunning()}
+                          class="batch-controls"
+                          open={batchRunning() ? true : undefined}
+                        >
+                          <summary>Sortear vários vencedores</summary>
+                          <div class="batch-setup">
+                            <label for="batch-count">Vencedores</label>
+                            <input
+                              id="batch-count"
+                              type="number"
+                              min="1"
+                              max={availableOptions(w()).length}
+                              step="1"
+                              value={batchCount()}
+                              disabled={spinning()}
+                              onInput={(e) =>
+                                setBatchCount(e.currentTarget.value)
+                              }
+                            />
+                            <button
+                              class="secondary-button"
+                              disabled={
+                                spinning() || !availableOptions(w()).length
+                              }
+                              onClick={spinBatch}
+                            >
+                              Iniciar sequência
+                            </button>
+                          </div>
+                          <Show
+                            when={batchRunning()}
+                            fallback={
+                              <Show when={batchResults().length}>
+                                <button
+                                  class="text-button"
+                                  onClick={() => setBatchSummary(true)}
+                                >
+                                  Ver resultados ({batchResults().length})
+                                </button>
+                              </Show>
+                            }
+                          >
+                            <div class="batch-progress" role="status">
+                              <span>
+                                {batchResults().length} de {batchTarget()}{" "}
+                                concluídos
+                                <Show when={batchResults().at(-1)}>
+                                  {" "}
+                                  · {batchResults().at(-1)?.label}
+                                </Show>
+                              </span>
+                              <button
+                                class="text-button"
+                                disabled={batchStopped()}
+                                onClick={stopBatch}
+                              >
+                                {batchStopped()
+                                  ? "Encerrando…"
+                                  : "Parar após este giro"}
+                              </button>
+                            </div>
+                          </Show>
+                        </details>
                       </section>
                       <section class="editor-card">
                         <div
@@ -1131,7 +1308,11 @@ function App() {
                             when={tab() === "options"}
                             fallback={
                               <div class="history-panel">
-                                <h3>As últimas voltas</h3>
+                                <h3>Histórico</h3>
+                                <ResultsActions
+                                  name={w().name}
+                                  results={w().history}
+                                />
                                 <p class="muted">
                                   Até 20 resultados desta roleta.
                                 </p>
@@ -1319,6 +1500,9 @@ function App() {
                                         class="option-row"
                                         hidden={!matchesOption(o())}
                                         classList={{
+                                          "option-disabled": Boolean(
+                                            o().disabled,
+                                          ),
                                           "option-drawn": Boolean(
                                             w().noRepeat && o().drawn,
                                           ),
@@ -1383,7 +1567,7 @@ function App() {
                                         />
                                         <input
                                           class="option-input"
-                                          aria-label={`Opção ${i + 1}`}
+                                          aria-label={`Opção ${i + 1}${o().disabled ? " (desativada)" : ""}`}
                                           maxLength={100}
                                           value={o().label}
                                           onInput={(e) => {
@@ -1413,6 +1597,35 @@ function App() {
                                               }));
                                           }}
                                         />
+                                        <button
+                                          class="toggle-option"
+                                          aria-pressed={!o().disabled}
+                                          aria-label={`${o().disabled ? "Ativar" : "Desativar"} ${o().label}`}
+                                          title={
+                                            o().disabled
+                                              ? "Ativar opção"
+                                              : "Desativar opção"
+                                          }
+                                          onClick={() =>
+                                            update((x) => ({
+                                              ...x,
+                                              options: x.options.map((item) =>
+                                                item.id === o().id
+                                                  ? {
+                                                      ...item,
+                                                      disabled: !item.disabled,
+                                                    }
+                                                  : item,
+                                              ),
+                                            }))
+                                          }
+                                        >
+                                          <ActionIcon
+                                            name={
+                                              o().disabled ? "eyeOff" : "eye"
+                                            }
+                                          />
+                                        </button>
                                         <button
                                           class="remove-option"
                                           aria-label={`Remover ${o().label}`}
@@ -1665,7 +1878,7 @@ function App() {
                     <RoundControls
                       enabled={Boolean(wheel().noRepeat)}
                       remaining={availableOptions(wheel()).length}
-                      total={wheel().options.length}
+                      total={activeOptions(wheel()).length}
                       used={wheel().options.some((o) => o.drawn)}
                       busy={spinning()}
                       onToggle={() => changeRound(id)}
@@ -1762,6 +1975,44 @@ function App() {
           </button>
         </div>
       </Show>
+      <Show when={batchSummary()}>
+        <dialog
+          class="share-dialog batch-dialog"
+          aria-labelledby="batch-title"
+          ref={(el) =>
+            queueMicrotask(() => {
+              if (el.isConnected) el.showModal();
+            })
+          }
+          onCancel={(e) => {
+            e.preventDefault();
+            closeBatchSummary();
+          }}
+        >
+          <h2 id="batch-title">
+            {batchResults().length === batchTarget()
+              ? "Vencedores"
+              : "Sorteio interrompido"}
+          </h2>
+          <p class="muted">
+            {active()?.name} · {batchResults().length} de {batchTarget()}
+          </p>
+          <ol class="batch-winners">
+            <For each={batchResults()}>
+              {(result) => <li>{result.label}</li>}
+            </For>
+          </ol>
+          <ResultsActions
+            name={active()?.name || "Roleta"}
+            results={batchResults()}
+          />
+          <div class="dialog-actions">
+            <button class="primary" onClick={closeBatchSummary}>
+              Fechar
+            </button>
+          </div>
+        </dialog>
+      </Show>
       <Show when={winner()}>
         {(result) => (
           <div
@@ -1781,6 +2032,10 @@ function App() {
               <h2 id="result-title" aria-live="assertive">
                 {result().label}
               </h2>
+              <ResultsActions
+                name={active()?.name || "Roleta"}
+                results={active()?.history.slice(0, 1) || []}
+              />
               <button
                 autofocus
                 ref={(el) => queueMicrotask(() => el.focus())}

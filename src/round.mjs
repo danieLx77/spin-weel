@@ -1,7 +1,9 @@
+export function activeOptions(wheel) {
+  return wheel.options.filter((option) => !option.disabled);
+}
 export function availableOptions(wheel) {
-  return wheel.noRepeat
-    ? wheel.options.filter((option) => !option.drawn)
-    : wheel.options;
+  const options = activeOptions(wheel);
+  return wheel.noRepeat ? options.filter((option) => !option.drawn) : options;
 }
 export function canSpin(wheel) {
   return Boolean(

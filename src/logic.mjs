@@ -123,6 +123,7 @@ export function validateWheels(data) {
       id: crypto.randomUUID(),
       label: o.label.trim(),
       drawn: o.drawn === true,
+      disabled: o.disabled === true,
       color:
         typeof o.color === "string" && /^#[0-9a-f]{6}$/i.test(o.color)
           ? o.color
