@@ -17,6 +17,7 @@ import {
   totalOptions,
 } from "./logic.mjs";
 import "./style.css";
+import { writeSnapshot, StorageConflictError } from "./persistence.mjs";
 import { setWheelSound, disposeWheelSound, prepareWheelSound } from "./sound";
 import { WheelIcon, GridIcon, ActionIcon } from "./Icons";
 import { Wheel as WheelVisual, type WheelHandle } from "./Wheel";
@@ -178,20 +179,30 @@ function App() {
       })),
     })),
   });
+  let lastStored: string | null = originalData || null;
+  const persist = () => {
+    if (storageBlocked()) return;
+    try {
+      lastStored = writeSnapshot(
+        localStorage,
+        "volta:v1",
+        lastStored,
+        JSON.stringify(snapshot()),
+      );
+      setSaveError(false);
+    } catch (error) {
+      setSaveError(true);
+      notify(
+        error instanceof StorageConflictError
+          ? error.message
+          : "Não foi possível salvar. Exporte um backup para preservar suas roletas.",
+      );
+    }
+  };
   createEffect(() => {
     if (storageBlocked() || spinning()) return;
-    const data = JSON.stringify(snapshot());
-    setSaveError(false);
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem("volta:v1", data);
-      } catch {
-        setSaveError(true);
-        notify(
-          "Não foi possível salvar. Exporte um backup para preservar suas roletas.",
-        );
-      }
-    }, 350);
+    snapshot(); // Track edits; serialize the latest state only when writing.
+    const t = setTimeout(persist, 350);
     onCleanup(() => clearTimeout(t));
   });
   onMount(() => {
@@ -216,10 +227,17 @@ function App() {
       if (mode() === "multi") spinAll();
       else void spin();
     };
+    const flushWhenHidden = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+    window.addEventListener("pagehide", persist);
+    document.addEventListener("visibilitychange", flushWhenHidden);
     window.addEventListener("keydown", enter);
     onCleanup(() => {
       media.removeEventListener("change", change);
       window.removeEventListener("keydown", enter);
+      window.removeEventListener("pagehide", persist);
+      document.removeEventListener("visibilitychange", flushWhenHidden);
     });
   });
   onCleanup(() => {
@@ -465,8 +483,16 @@ function App() {
                     confirm(
                       "Substituir os dados antigos pelas roletas atuais? Baixe os dados antigos antes de continuar.",
                     )
-                  )
-                    setStorageBlocked(false);
+                  ) {
+                    try {
+                      lastStored = localStorage.getItem("volta:v1");
+                      setStorageBlocked(false);
+                    } catch {
+                      notify(
+                        "O armazenamento não está disponível. Exporte um backup.",
+                      );
+                    }
+                  }
                 }}
               >
                 Salvar roletas atuais
