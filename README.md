@@ -74,3 +74,10 @@ Depois do primeiro acesso online e da preparação do cache, a aplicação abre 
 - “Sortear vários vencedores” define a quantidade e executa um giro por participação, sem repetir IDs naquela sequência. Nomes iguais continuam sendo participações separadas. Com “Sem repetição” ativo, também são respeitados os sorteios anteriores da rodada.
 - “Parar após este giro” preserva os resultados concluídos e não inicia o próximo giro. O resumo completo fica disponível até trocar de roleta, começar outra sequência ou recarregar; o histórico continua limitado aos 20 últimos giros.
 - Resumos, resultado individual e histórico oferecem cópia e exportação CSV. O CSV inclui roleta, posição na lista exportada, opção e data UTC. O resumo usa ordem de sorteio; o histórico usa a ordem mais recente primeiro. Para preservar mais de 20 vencedores, exporte o resumo antes de sair.
+
+## Ordem, QR Code e surpresa
+
+- Em “Ferramentas da lista”, A–Z e Z–A ordenam por nome em português, com números em ordem natural; “Embaralhar” usa Fisher–Yates com a mesma fonte criptográfica dos sorteios. As ações abrangem a lista inteira, inclusive opções desativadas, e podem ser desfeitas sem perder edições posteriores. A ordem visual não altera as chances.
+- O ícone de QR Code fica ao lado das configurações. Gera uma cópia da roleta pelo mesmo link compartilhável, localmente, com opção de baixar PNG ou copiar o endereço. Para manter o código legível, o link tem limite de 1.400 caracteres; listas maiores continuam compartilháveis pelo link normal (até 8.000 caracteres) ou backup.
+- “Modo surpresa”, nas configurações, substitui os nomes da roda por `?` e revela cada vencedor no resultado. Funciona em giros simples, sequências e roletas simultâneas; a preferência fica neste navegador. É um efeito visual: editor, histórico, backups e links continuam contendo os nomes.
+- O gerador QR é carregado apenas ao abrir o compartilhamento. O cache offline de produção inclui esse arquivo. O decodificador QR usado na validação é uma dependência exclusiva de testes.

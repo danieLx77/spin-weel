@@ -45,3 +45,5 @@ CSV é tratado como dados de texto; células não são executadas e cores aceita
 ## Exportação de resultados
 
 O CSV de resultados escapa aspas, vírgulas e quebras de linha, e prefixa conteúdo que possa ser interpretado como fórmula por planilhas. A geração e o download acontecem localmente. A sequência registra apenas animações concluídas e respeita opções desativadas e os limites da rodada.
+
+QR Codes são gerados localmente, sem serviço externo ou encurtador, a partir do mesmo link validado de compartilhamento. Não tornam o conteúdo sigiloso. O modo surpresa oculta apenas a representação da roda e não é um controle de acesso aos nomes. O limite menor do QR Code protege a legibilidade e limita o trabalho de codificação. A biblioteca de geração é fixada por versão no lockfile e carregada sob demanda; a biblioteca de leitura não entra no aplicativo.
