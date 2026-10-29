@@ -1,3 +1,4 @@
+import { prepareWheelSound, playWheelClick } from "./sound";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { spinProgress, targetRotation, labelColor } from "./logic.mjs";
 export type WheelOption = { id: string; label: string; color: string };
@@ -83,6 +84,7 @@ export function Wheel(props: {
     props.register({
       spin(index) {
         if (busy || props.options.length < 2) return Promise.resolve(false);
+        prepareWheelSound();
         busy = true;
         const from = angle,
           to = targetRotation(from, index, props.options.length);
@@ -100,6 +102,7 @@ export function Wheel(props: {
             canvas.style.transform = `rotate(${angle}deg)`;
             const boundary = Math.floor((angle + 1e-7) / slice);
             if (boundary !== previousBoundary && t < 1) {
+              playWheelClick();
               lastHit = now;
               previousBoundary = boundary;
             }

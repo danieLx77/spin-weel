@@ -17,6 +17,7 @@ import {
   totalOptions,
 } from "./logic.mjs";
 import "./style.css";
+import { setWheelSound, disposeWheelSound, prepareWheelSound } from "./sound";
 import { WheelIcon, GridIcon, ActionIcon } from "./Icons";
 import { Wheel as WheelVisual, type WheelHandle } from "./Wheel";
 type Option = { id: string; label: string; color: string };
@@ -51,6 +52,18 @@ const defaults = () => [
   makeWheel("Quem começa?", ["Ana", "Bruno", "Clara", "Daniel"]),
 ];
 function App() {
+  let soundPreference = true;
+  try {
+    soundPreference = localStorage.getItem("volta:sound") !== "off";
+  } catch {}
+  const [soundOn, setSoundOn] = createSignal(soundPreference);
+  createEffect(() => {
+    const value = soundOn();
+    setWheelSound(value);
+    try {
+      localStorage.setItem("volta:sound", value ? "on" : "off");
+    } catch {}
+  });
   let initial: Wheel[];
   let initialError = "";
   let originalData = "";
@@ -211,6 +224,7 @@ function App() {
   });
   onCleanup(() => {
     clearTimeout(noticeTimer);
+    disposeWheelSound();
   });
   const add = () => {
     if (!active() || active()!.options.length >= 500) return;
@@ -479,6 +493,33 @@ function App() {
               <GridIcon /> Roletas simultâneas
             </button>
           </div>
+          <button
+            class="icon-button sound-toggle"
+            aria-label={soundOn() ? "Silenciar som" : "Ativar som"}
+            title={soundOn() ? "Silenciar som" : "Ativar som"}
+            aria-pressed={soundOn()}
+            onClick={() => {
+              const next = !soundOn();
+              setWheelSound(next);
+              setSoundOn(next);
+              if (next) prepareWheelSound();
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M11 4 6 8H3v8h3l5 4z" />
+              <Show when={soundOn()} fallback={<path d="m16 9 6 6m-6 0 6-6" />}>
+                <path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />
+              </Show>
+            </svg>
+          </button>
         </div>
         <Show
           when={mode() === "multi"}
