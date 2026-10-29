@@ -11,6 +11,7 @@ import {
 } from "solid-js";
 import {
   optionColors,
+  renewOptionColors,
   randomIndex,
   MAX_BACKUP_BYTES,
   MAX_TOTAL_OPTIONS,
@@ -1432,8 +1433,8 @@ function App() {
                                   disabled={spinning() || !w().options.length}
                                   onClick={() =>
                                     update((x) => {
-                                      const colors = optionColors(
-                                        x.options.length,
+                                      const colors = renewOptionColors(
+                                        x.options.map((o) => o.color),
                                       );
                                       return {
                                         ...x,

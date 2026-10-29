@@ -43,12 +43,14 @@ export function optionColor(index) {
   };
   return `#${channel(0)}${channel(8)}${channel(4)}`;
 }
-export function optionColors(count, existing = []) {
+export function optionColors(count, existing = [], start = 0) {
+  if (!Number.isSafeInteger(start) || start < 0 || start > 1_000_024)
+    throw new RangeError("Início de paleta inválido");
   if (!Number.isSafeInteger(count) || count < 0 || count > 500)
     throw new RangeError("Quantidade de cores inválida");
   const used = new Set(existing.map((color) => color.toLowerCase()));
   const result = [];
-  for (let i = 0; result.length < count; i++) {
+  for (let i = start; result.length < count; i++) {
     const color = optionColor(i);
     if (!used.has(color)) {
       used.add(color);
@@ -67,6 +69,13 @@ export function randomIndex(length, fill = (a) => crypto.getRandomValues(a)) {
     fill(value);
   } while (value[0] >= limit);
   return value[0] % length;
+}
+export function renewOptionColors(current, fill) {
+  return optionColors(
+    current.length,
+    current,
+    24 + randomIndex(1_000_000, fill),
+  );
 }
 export const MAX_BACKUP_BYTES = 5_000_000;
 export const MAX_TOTAL_OPTIONS = 5000;

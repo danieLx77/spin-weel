@@ -15,6 +15,7 @@ export function SettingsPanel(props: {
   onMessage: (text: string) => void;
 }) {
   const [link, setLink] = createSignal("");
+  const [surpriseTip, setSurpriseTip] = createSignal(false);
   return (
     <details
       class="settings-panel"
@@ -61,10 +62,20 @@ export function SettingsPanel(props: {
             type="checkbox"
             checked={props.mystery}
             disabled={props.busy}
-            onChange={(e) => props.onMystery(e.currentTarget.checked)}
+            onChange={(e) => {
+              const enabled = e.currentTarget.checked;
+              props.onMystery(enabled);
+              setSurpriseTip(enabled);
+            }}
           />
           Modo surpresa
         </label>
+        <Show when={props.mystery && surpriseTip()}>
+          <p class="muted surprise-tip" role="status">
+            Para mais imersão, use o modo apresentação: ele oculta o editor e
+            deixa só a roleta em destaque.
+          </p>
+        </Show>
         <Show when={props.canShare}>
           <button
             type="button"
