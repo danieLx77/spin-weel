@@ -1,8 +1,28 @@
 export const palette = [
-  "#7c3aed", "#f97316", "#10b981", "#e11d48", "#2563eb", "#eab308",
-  "#c026d3", "#06b6d4", "#ef4444", "#84cc16", "#4f46e5", "#14b8a6",
-  "#ec4899", "#f59e0b", "#0891b2", "#ea580c", "#16a34a", "#9333ea",
-  "#0d9488", "#d97706", "#6366f1", "#db2777", "#0284c7", "#65a30d",
+  "#7c3aed",
+  "#f97316",
+  "#10b981",
+  "#e11d48",
+  "#2563eb",
+  "#eab308",
+  "#c026d3",
+  "#06b6d4",
+  "#ef4444",
+  "#84cc16",
+  "#4f46e5",
+  "#14b8a6",
+  "#ec4899",
+  "#f59e0b",
+  "#0891b2",
+  "#ea580c",
+  "#16a34a",
+  "#9333ea",
+  "#0d9488",
+  "#d97706",
+  "#6366f1",
+  "#db2777",
+  "#0284c7",
+  "#65a30d",
 ];
 // First 24 colors are curated. Further colors use a golden-angle sequence.
 export function optionColor(index) {
@@ -98,9 +118,11 @@ export function validateWheels(data) {
   return data.map((w) => ({
     id: crypto.randomUUID(),
     name: w.name.trim(),
+    noRepeat: w.noRepeat === true,
     options: w.options.map((o, i) => ({
       id: crypto.randomUUID(),
       label: o.label.trim(),
+      drawn: o.drawn === true,
       color:
         typeof o.color === "string" && /^#[0-9a-f]{6}$/i.test(o.color)
           ? o.color
@@ -151,7 +173,14 @@ export function spinProgress(t) {
 }
 
 export function labelColor(background) {
-  const channels = background.slice(1).match(/../g).map(value => parseInt(value,16)/255).map(value => value <= .04045 ? value/12.92 : ((value+.055)/1.055)**2.4);
-  const luminance = channels[0]*.2126 + channels[1]*.7152 + channels[2]*.0722;
-  return luminance > .179 ? '#000000' : '#ffffff';
+  const channels = background
+    .slice(1)
+    .match(/../g)
+    .map((value) => parseInt(value, 16) / 255)
+    .map((value) =>
+      value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+    );
+  const luminance =
+    channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  return luminance > 0.179 ? "#000000" : "#ffffff";
 }

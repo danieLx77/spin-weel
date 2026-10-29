@@ -83,7 +83,7 @@ export function Wheel(props: {
   onMount(() =>
     props.register({
       spin(index) {
-        if (busy || props.options.length < 2) return Promise.resolve(false);
+        if (busy || props.options.length < 1) return Promise.resolve(false);
         prepareWheelSound();
         busy = true;
         const from = angle,
@@ -140,7 +140,7 @@ export function Wheel(props: {
         <canvas
           ref={canvas}
           role="img"
-          aria-label={`Roleta ${props.name}, com ${props.options.length} opções de chances iguais`}
+          aria-label={`Roleta ${props.name}, ${props.options.length} ${props.options.length === 1 ? "opção" : "opções"}`}
         />
         <div class="wheel-center" aria-hidden="true" />
       </div>

@@ -17,16 +17,19 @@ import {
   totalOptions,
 } from "./logic.mjs";
 import "./style.css";
+import { availableOptions, canSpin, markDrawn, resetRound } from "./round.mjs";
+import { RoundControls } from "./RoundControls";
 import { writeSnapshot, StorageConflictError } from "./persistence.mjs";
 import { setWheelSound, disposeWheelSound, prepareWheelSound } from "./sound";
 import { WheelIcon, GridIcon, ActionIcon } from "./Icons";
 import { Wheel as WheelVisual, type WheelHandle } from "./Wheel";
-type Option = { id: string; label: string; color: string };
+type Option = { id: string; label: string; color: string; drawn?: boolean };
 type Wheel = {
   id: string;
   name: string;
   options: Option[];
   history: { label: string; date: string }[];
+  noRepeat?: boolean;
 };
 const uid = () => crypto.randomUUID();
 const makeWheel = (name: string, labels: string[]): Wheel => {
@@ -103,12 +106,57 @@ function App() {
   let singleWheel: WheelHandle;
   const selectedWheels = () =>
     selectedIds().filter((id) => wheels().some((w) => w.id === id));
+  const [presentation, setPresentation] = createSignal(false);
+  type UndoEntry = { label: string; restore: () => boolean };
+  const [undoStack, setUndoStack] = createSignal<UndoEntry[]>([]);
+  const rememberDeletion = (entry: UndoEntry) =>
+    setUndoStack((stack) => [...stack, entry].slice(-20));
+  const undoDelete = () => {
+    if (spinning()) return;
+    const entry = undoStack().at(-1);
+    if (entry?.restore()) setUndoStack((stack) => stack.slice(0, -1));
+  };
+  const exitPresentation = () => {
+    setPresentation(false);
+    if (document.fullscreenElement)
+      void document.exitFullscreen().catch(() => {});
+    queueMicrotask(() =>
+      document
+        .querySelector<HTMLButtonElement>(".presentation-toggle")
+        ?.focus(),
+    );
+  };
+  const togglePresentation = () => {
+    if (presentation()) {
+      exitPresentation();
+      return;
+    }
+    setPresentation(true);
+    if (document.documentElement.requestFullscreen)
+      void document.documentElement.requestFullscreen().catch(() => {});
+  };
+  const changeRound = (id: string, reset = false) => {
+    if (spinning()) return;
+    setWheels((all) =>
+      all.map((w) =>
+        w.id === id
+          ? reset
+            ? resetRound(w)
+            : { ...w, noRepeat: !w.noRepeat }
+          : w,
+      ),
+    );
+    if (reset) {
+      setWinner(undefined);
+      setMultiResults((old) => ({ ...old, [id]: "" }));
+    }
+  };
   const recordResult = (id: string, selected: Option) =>
     setWheels((all) =>
       all.map((w) =>
         w.id === id
           ? {
-              ...w,
+              ...markDrawn(w, selected.id),
               history: [
                 { label: selected.label, date: new Date().toISOString() },
                 ...w.history,
@@ -117,6 +165,52 @@ function App() {
           : w,
       ),
     );
+  const removeOption = (wheelId: string, optionId: string) => {
+    if (spinning()) return;
+    const w = wheels().find((w) => w.id === wheelId),
+      index = w?.options.findIndex((o) => o.id === optionId) ?? -1;
+    if (!w || index < 0) return;
+    const removed = w.options[index];
+    setWheels((all) =>
+      all.map((w) =>
+        w.id === wheelId
+          ? { ...w, options: w.options.filter((o) => o.id !== optionId) }
+          : w,
+      ),
+    );
+    rememberDeletion({
+      label: "Opção excluída.",
+      restore: () => {
+        const current = wheels().find((w) => w.id === wheelId);
+        if (!current) {
+          notify("Restaure a roleta antes de restaurar esta opção.");
+          return false;
+        }
+        if (
+          current.options.length >= 500 ||
+          totalOptions(wheels()) >= MAX_TOTAL_OPTIONS
+        ) {
+          notify("Limite de opções atingido.");
+          return false;
+        }
+        setWheels((all) =>
+          all.map((w) =>
+            w.id === wheelId
+              ? {
+                  ...w,
+                  options: [
+                    ...w.options.slice(0, index),
+                    removed,
+                    ...w.options.slice(index),
+                  ],
+                }
+              : w,
+          ),
+        );
+        return true;
+      },
+    });
+  };
   const toggleSelected = (id: string) => {
     if (spinning()) return;
     if (selectedIds().includes(id))
@@ -127,13 +221,13 @@ function App() {
   const spinMulti = async (id: string) => {
     const w = wheels().find((w) => w.id === id),
       controller = controllers.get(id);
-    if (!w || w.options.length < 2 || !controller || runningIds().includes(id))
-      return;
-    const selected = w.options[randomIndex(w.options.length)];
+    if (!w || !canSpin(w) || !controller || runningIds().includes(id)) return;
+    const eligible = availableOptions(w);
+    const selected = eligible[randomIndex(eligible.length)];
     setRunningIds((ids) => [...ids, id]);
     setSpinning(true);
     setMultiResults((old) => ({ ...old, [id]: "" }));
-    const completed = await controller.spin(w.options.indexOf(selected));
+    const completed = await controller.spin(eligible.indexOf(selected));
     if (completed) {
       recordResult(id, selected);
       setMultiResults((old) => ({ ...old, [id]: selected.label }));
@@ -211,6 +305,26 @@ function App() {
     const change = () => setReduced(media.matches);
     media.addEventListener("change", change);
     const enter = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && presentation() && !winner()) {
+        e.preventDefault();
+        exitPresentation();
+        return;
+      }
+      const editing = (e.target as HTMLElement).closest(
+        "input,textarea,[contenteditable=true]",
+      );
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        e.key.toLowerCase() === "z" &&
+        !editing &&
+        !winner() &&
+        undoStack().length
+      ) {
+        e.preventDefault();
+        undoDelete();
+        return;
+      }
       if (
         e.key !== "Enter" ||
         e.repeat ||
@@ -230,12 +344,17 @@ function App() {
     const flushWhenHidden = () => {
       if (document.visibilityState === "hidden") persist();
     };
+    const fullscreenChange = () => {
+      if (!document.fullscreenElement) setPresentation(false);
+    };
+    document.addEventListener("fullscreenchange", fullscreenChange);
     window.addEventListener("pagehide", persist);
     document.addEventListener("visibilitychange", flushWhenHidden);
     window.addEventListener("keydown", enter);
     onCleanup(() => {
       media.removeEventListener("change", change);
       window.removeEventListener("keydown", enter);
+      document.removeEventListener("fullscreenchange", fullscreenChange);
       window.removeEventListener("pagehide", persist);
       document.removeEventListener("visibilitychange", flushWhenHidden);
     });
@@ -263,9 +382,10 @@ function App() {
   };
   const spin = async () => {
     const w = active();
-    if (!w || w.options.length < 2 || spinning() || !singleWheel) return;
-    const index = randomIndex(w.options.length),
-      selected = w.options[index];
+    if (!w || !canSpin(w) || spinning() || !singleWheel) return;
+    const eligible = availableOptions(w);
+    const index = randomIndex(eligible.length),
+      selected = eligible[index];
     setWinner(undefined);
     setSpinning(true);
     const completed = await singleWheel.spin(index);
@@ -283,6 +403,8 @@ function App() {
   };
   const trapResult = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
       closeResult();
       return;
     }
@@ -321,20 +443,38 @@ function App() {
     select(w.id);
   };
   const removeWheel = (id: string) => {
-    const w = wheels().find((w) => w.id === id);
-    if (
-      !w ||
-      spinning() ||
-      !confirm(`Excluir “${w.name}”? Essa ação não pode ser desfeita.`)
-    )
-      return;
-    const next = wheels().filter((x) => x.id !== w.id);
+    const index = wheels().findIndex((w) => w.id === id),
+      removed = wheels()[index];
+    if (!removed || spinning()) return;
+    const selected = selectedIds().includes(id),
+      wasActive = activeId() === id;
     setSelectedIds((ids) => ids.filter((x) => x !== id));
     controllers.delete(id);
+    const next = wheels().filter((w) => w.id !== id);
     setWheels(next);
-    if (activeId() === id) setActiveId(next[0]?.id || "");
+    if (wasActive) setActiveId(next[0]?.id || "");
     setWinner(undefined);
-    notify("Roleta excluída.");
+    rememberDeletion({
+      label: "Roleta excluída.",
+      restore: () => {
+        if (
+          wheels().length >= 100 ||
+          totalOptions(wheels()) + removed.options.length > MAX_TOTAL_OPTIONS
+        ) {
+          notify("Limite de roletas ou opções atingido.");
+          return false;
+        }
+        setWheels((all) => [
+          ...all.slice(0, index),
+          removed,
+          ...all.slice(index),
+        ]);
+        if (wasActive) setActiveId(id);
+        if (selected && selectedIds().length < 6)
+          setSelectedIds((ids) => [...ids, id]);
+        return true;
+      },
+    });
   };
   const duplicate = () => {
     const w = active();
@@ -348,7 +488,8 @@ function App() {
       return;
     }
     const copy = makeWheel(`${w.name} (cópia)`.slice(0, 80), []);
-    copy.options = w.options.map((o) => ({ ...o, id: uid() }));
+    copy.noRepeat = w.noRepeat;
+    copy.options = w.options.map((o) => ({ ...o, id: uid(), drawn: false }));
     setWheels([...wheels(), copy]);
     select(copy.id);
     notify("Roleta duplicada.");
@@ -398,7 +539,7 @@ function App() {
     return new Set(labels).size < labels.length;
   };
   return (
-    <div class="app-shell">
+    <div class="app-shell" classList={{ presentation: presentation() }}>
       <aside class="sidebar">
         <a class="brand" href="./" aria-label="Volta, início">
           <span class="brand-icon">
@@ -519,33 +660,62 @@ function App() {
               <GridIcon /> Roletas simultâneas
             </button>
           </div>
-          <button
-            class="icon-button sound-toggle"
-            aria-label={soundOn() ? "Silenciar som" : "Ativar som"}
-            title={soundOn() ? "Silenciar som" : "Ativar som"}
-            aria-pressed={soundOn()}
-            onClick={() => {
-              const next = !soundOn();
-              setWheelSound(next);
-              setSoundOn(next);
-              if (next) prepareWheelSound();
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
+          <div class="view-actions">
+            <Show when={undoStack().length}>
+              <button
+                class="icon-button"
+                disabled={spinning()}
+                aria-label="Desfazer exclusão"
+                title="Desfazer exclusão"
+                onClick={undoDelete}
+              >
+                <ActionIcon name="undo" />
+              </button>
+            </Show>
+            <button
+              class="icon-button presentation-toggle"
+              aria-label={
+                presentation() ? "Sair da apresentação" : "Modo apresentação"
+              }
+              title={
+                presentation() ? "Sair da apresentação" : "Modo apresentação"
+              }
+              aria-pressed={presentation()}
+              onClick={togglePresentation}
             >
-              <path d="M11 4 6 8H3v8h3l5 4z" />
-              <Show when={soundOn()} fallback={<path d="m16 9 6 6m-6 0 6-6" />}>
-                <path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />
-              </Show>
-            </svg>
-          </button>
+              <ActionIcon name={presentation() ? "collapse" : "expand"} />
+            </button>
+            <button
+              class="icon-button sound-toggle"
+              aria-label={soundOn() ? "Silenciar som" : "Ativar som"}
+              title={soundOn() ? "Silenciar som" : "Ativar som"}
+              aria-pressed={soundOn()}
+              onClick={() => {
+                const next = !soundOn();
+                setWheelSound(next);
+                setSoundOn(next);
+                if (next) prepareWheelSound();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M11 4 6 8H3v8h3l5 4z" />
+                <Show
+                  when={soundOn()}
+                  fallback={<path d="m16 9 6 6m-6 0 6-6" />}
+                >
+                  <path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />
+                </Show>
+              </svg>
+            </button>
+          </div>
         </div>
         <Show
           when={mode() === "multi"}
@@ -613,7 +783,7 @@ function App() {
                     <div class="workspace-grid">
                       <section class="play-card">
                         <WheelVisual
-                          options={w().options}
+                          options={availableOptions(w())}
                           name={w().name}
                           reduced={reduced()}
                           register={(handle) => (singleWheel = handle)}
@@ -621,7 +791,7 @@ function App() {
                         <div class="spin-controls">
                           <button
                             class="spin-button"
-                            disabled={spinning() || w().options.length < 2}
+                            disabled={spinning() || !canSpin(w())}
                             onClick={spin}
                           >
                             <span>
@@ -632,10 +802,25 @@ function App() {
                               : "Girar roleta"}
                             <kbd>↵</kbd>
                           </button>
-                          <Show when={w().options.length < 2}>
-                            <p>Adicione pelo menos 2 opções para girar.</p>
+                          <Show when={!canSpin(w())}>
+                            <p>
+                              {w().noRepeat
+                                ? w().options.length
+                                  ? "Rodada concluída."
+                                  : "Adicione uma opção para girar."
+                                : "Adicione pelo menos 2 opções para girar."}
+                            </p>
                           </Show>
                         </div>
+                        <RoundControls
+                          enabled={Boolean(w().noRepeat)}
+                          remaining={availableOptions(w()).length}
+                          total={w().options.length}
+                          used={w().options.some((o) => o.drawn)}
+                          busy={spinning()}
+                          onToggle={() => changeRound(w().id)}
+                          onReset={() => changeRound(w().id, true)}
+                        />
                       </section>
                       <section class="editor-card">
                         <div
@@ -799,7 +984,14 @@ function App() {
                                 <div class="option-list">
                                   <Index each={w().options}>
                                     {(o, i) => (
-                                      <div class="option-row">
+                                      <div
+                                        class="option-row"
+                                        classList={{
+                                          "option-drawn": Boolean(
+                                            w().noRepeat && o().drawn,
+                                          ),
+                                        }}
+                                      >
                                         <div class="reorder">
                                           <button
                                             aria-label={`Mover ${o().label} para cima`}
@@ -872,12 +1064,7 @@ function App() {
                                           class="remove-option"
                                           aria-label={`Remover ${o().label}`}
                                           onClick={() =>
-                                            update((x) => ({
-                                              ...x,
-                                              options: x.options.filter(
-                                                (item) => item.id !== o().id,
-                                              ),
-                                            }))
+                                            removeOption(w().id, o().id)
                                           }
                                         >
                                           <ActionIcon name="close" />
@@ -983,10 +1170,8 @@ function App() {
               class="primary spin-all"
               disabled={
                 spinning() ||
-                !selectedWheels().some(
-                  (id) =>
-                    (wheels().find((w) => w.id === id)?.options.length || 0) >=
-                    2,
+                !selectedWheels().some((id) =>
+                  canSpin(wheels().find((w) => w.id === id)),
                 )
               }
               onClick={spinAll}
@@ -1051,7 +1236,7 @@ function App() {
                       </div>
                     </div>
                     <WheelVisual
-                      options={wheel().options}
+                      options={availableOptions(wheel())}
                       name={wheel().name}
                       reduced={reduced()}
                       register={(handle) => controllers.set(id, handle)}
@@ -1066,8 +1251,7 @@ function App() {
                       <button
                         class="spin-button"
                         disabled={
-                          runningIds().includes(id) ||
-                          wheel().options.length < 2
+                          runningIds().includes(id) || !canSpin(wheel())
                         }
                         onClick={() => void spinMulti(id)}
                       >
@@ -1077,6 +1261,15 @@ function App() {
                           : "Girar esta roleta"}
                       </button>
                     </div>
+                    <RoundControls
+                      enabled={Boolean(wheel().noRepeat)}
+                      remaining={availableOptions(wheel()).length}
+                      total={wheel().options.length}
+                      used={wheel().options.some((o) => o.drawn)}
+                      busy={spinning()}
+                      onToggle={() => changeRound(id)}
+                      onReset={() => changeRound(id, true)}
+                    />
                   </section>
                 );
               }}
@@ -1090,6 +1283,22 @@ function App() {
           </Show>
         </Show>
       </main>
+      <Show when={undoStack().at(-1)}>
+        {(entry) => (
+          <div class="undo-toast" role="status">
+            <span>{entry().label}</span>
+            <button disabled={spinning()} onClick={undoDelete}>
+              Desfazer
+            </button>
+            <button
+              aria-label="Fechar aviso de exclusão"
+              onClick={() => setUndoStack([])}
+            >
+              <ActionIcon name="close" />
+            </button>
+          </div>
+        )}
+      </Show>
       <Show when={notice()}>
         <div class="toast" role="status">
           {notice()}
@@ -1129,10 +1338,7 @@ function App() {
                 class="text-button"
                 onClick={() => {
                   const id = result().id;
-                  update((w) => ({
-                    ...w,
-                    options: w.options.filter((o) => o.id !== id),
-                  }));
+                  if (active()) removeOption(activeId(), id);
                   closeResult();
                 }}
               >

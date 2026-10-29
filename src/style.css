@@ -1537,3 +1537,176 @@ h1 {
     height: 14px;
   }
 }
+
+.view-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.round-controls {
+  order: 4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding: 8px 20px;
+  font-size: 12px;
+  color: var(--muted);
+  min-height: 51px;
+}
+.round-controls label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  min-height: 36px;
+}
+.round-controls input {
+  accent-color: var(--primary);
+  width: 14px;
+  height: 14px;
+}
+.round-controls .text-button {
+  margin-left: auto;
+  padding: 8px 0;
+  min-height: 36px;
+}
+.round-count {
+  font-variant-numeric: tabular-nums;
+}
+.option-drawn .option-input {
+  text-decoration: line-through;
+  color: #71717a;
+}
+.undo-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 20;
+  max-width: 94vw;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 14px;
+  font-size: 13px;
+  box-shadow: 0 4px 16px #00000012;
+}
+.undo-toast button {
+  min-height: 36px;
+  font-size: 12px;
+  color: #27272a;
+  font-weight: 550;
+}
+.undo-toast button:first-of-type {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.undo-toast svg {
+  width: 16px;
+  height: 16px;
+}
+.undo-toast ~ .toast {
+  bottom: 92px;
+}
+.presentation .sidebar,
+.presentation .editor-card,
+.presentation .multi-picker,
+.presentation .heading-actions,
+.presentation .multi-card-actions,
+.presentation .mode-switch {
+  display: none;
+}
+.presentation main {
+  max-width: 1800px;
+  padding: 0 32px;
+}
+.presentation .view-controls {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.presentation .page-heading {
+  padding: 16px 0 20px;
+}
+.presentation .workspace-grid {
+  grid-template-columns: 1fr;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.presentation .play-card:not(.multi-card) .wheel-stage {
+  height: auto;
+  aspect-ratio: 1.12;
+  max-height: 72vh;
+  min-height: 310px;
+}
+.presentation .play-card:not(.multi-card) .wheel-frame {
+  width: min(72vh, 82%, 650px);
+}
+.presentation .multi-grid {
+  padding-top: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+}
+.presentation .page-heading h1 {
+  font-size: clamp(24px, 3vw, 36px);
+}
+.presentation .multi-card .wheel-stage {
+  height: auto;
+  aspect-ratio: 1;
+}
+.presentation .multi-card .wheel-frame {
+  width: 86%;
+  max-width: 440px;
+}
+@media (max-width: 640px) {
+  .view-actions {
+    gap: 5px;
+  }
+  .view-controls {
+    flex-wrap: wrap;
+  }
+  .view-controls .mode-switch {
+    flex-basis: 100%;
+  }
+  .view-actions {
+    margin-left: auto;
+  }
+  .round-controls {
+    padding: 8px 14px;
+    gap: 9px;
+  }
+  .round-controls label,
+  .round-controls .text-button {
+    min-height: 44px;
+  }
+  .undo-toast {
+    gap: 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .undo-toast button {
+    min-height: 44px;
+  }
+  .presentation main {
+    padding: 0 16px;
+  }
+  .presentation .play-card:not(.multi-card) .wheel-stage {
+    min-height: 0;
+    max-height: none;
+    aspect-ratio: 1;
+  }
+  .presentation .play-card:not(.multi-card) .wheel-frame {
+    width: 89%;
+  }
+}
+.round-controls {
+  order: 2;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+.play-card > .wheel-stage {
+  order: 3;
+}

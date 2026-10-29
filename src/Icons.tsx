@@ -40,9 +40,15 @@ export function ActionIcon(props: {
     | "shield"
     | "list"
     | "download"
-    | "upload";
+    | "upload"
+    | "expand"
+    | "collapse"
+    | "undo";
 }) {
   const paths = {
+    expand: "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5",
+    collapse: "M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5",
+    undo: "M9 4 4 9l5 5M4 9h10a6 6 0 0 1 0 12h-2",
     spin: "M20 7V3m0 0h-4m4 0-4 4a8 8 0 1 0 3 9",
     plus: "M12 5v14M5 12h14",
     close: "m6 6 12 12M6 18 18 6",
