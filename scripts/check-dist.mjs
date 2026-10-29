@@ -34,3 +34,15 @@ async function inspect(directory) {
 }
 await inspect("dist");
 console.log(`Artefato validado: ${assets.length} assets em ${base}`);
+
+const manifest = JSON.parse(
+  await readFile("dist/manifest.webmanifest", "utf8"),
+);
+assert.equal(manifest.start_url, base);
+assert.equal(manifest.scope, base);
+assert.equal(manifest.icons.length, 2);
+for (const icon of manifest.icons) await readFile(join("dist", icon.src));
+const worker = await readFile("dist/sw.js", "utf8");
+assert.ok(worker.includes("SKIP_WAITING"));
+assert.ok(worker.includes(JSON.stringify(base + "index.html")));
+console.log("Manifesto e cache offline validados.");

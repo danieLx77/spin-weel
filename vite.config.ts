@@ -1,3 +1,4 @@
+import { pwaPlugin } from "./pwa-plugin.mjs";
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 import tailwindcss from "@tailwindcss/vite";
@@ -7,6 +8,7 @@ export default defineConfig({
   plugins: [
     solid(),
     tailwindcss(),
+    pwaPlugin(process.env.BASE_PATH || "/"),
     {
       name: "production-security",
       apply: "build",
