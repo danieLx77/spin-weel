@@ -8,6 +8,7 @@ export function Wheel(props: {
   name: string;
   reduced: boolean;
   duration: number;
+  mystery: boolean;
   register: (handle: WheelHandle) => void;
 }) {
   let canvas!: HTMLCanvasElement;
@@ -16,11 +17,19 @@ export function Wheel(props: {
   let angle = 0,
     raf = 0,
     busy = false;
+  let previousMystery: boolean | undefined;
   let previousOptions: WheelOption[] | undefined;
   let finish: ((completed: boolean) => void) | undefined;
   createEffect(() => {
     const options = props.options;
-    if (!canvas || busy || options === previousOptions) return;
+    const mystery = props.mystery;
+    if (
+      !canvas ||
+      busy ||
+      (options === previousOptions && mystery === previousMystery)
+    )
+      return;
+    previousMystery = mystery;
     previousOptions = options;
     angle = 0;
     canvas.style.transform = "rotate(0deg)";
@@ -56,7 +65,11 @@ export function Wheel(props: {
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";
         ctx.fillText(
-          o.label.length > 19 ? o.label.slice(0, 18) + "…" : o.label,
+          mystery
+            ? "?"
+            : o.label.length > 19
+              ? o.label.slice(0, 18) + "…"
+              : o.label,
           427,
           0,
           330,
@@ -141,7 +154,7 @@ export function Wheel(props: {
         <canvas
           ref={canvas}
           role="img"
-          aria-label={`Roleta ${props.name}, ${props.options.length} ${props.options.length === 1 ? "opção" : "opções"}`}
+          aria-label={`Roleta ${props.name}, ${props.options.length} ${props.options.length === 1 ? "opção" : "opções"}${props.mystery ? ", nomes ocultos" : ""}`}
         />
         <div class="wheel-center" aria-hidden="true" />
       </div>

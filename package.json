@@ -11,10 +11,12 @@
     "check:dist": "node scripts/check-dist.mjs"
   },
   "dependencies": {
+    "qrcode-generator": "2.0.4",
     "solid-js": "^1.9.9"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
+    "jsqr": "1.4.0",
     "tailwindcss": "^4.1.0",
     "typescript": "~5.9.3",
     "vite": "^7.1.0",

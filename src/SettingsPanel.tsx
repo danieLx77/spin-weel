@@ -4,6 +4,8 @@ import { ActionIcon } from "./Icons";
 export function SettingsPanel(props: {
   duration: number;
   volume: number;
+  mystery: boolean;
+  onMystery: (value: boolean) => void;
   busy: boolean;
   updateBlocked: boolean;
   canShare: boolean;
@@ -53,6 +55,15 @@ export function SettingsPanel(props: {
             value={props.volume}
             onInput={(e) => props.onVolume(Number(e.currentTarget.value))}
           />
+        </label>
+        <label class="mystery-setting">
+          <input
+            type="checkbox"
+            checked={props.mystery}
+            disabled={props.busy}
+            onChange={(e) => props.onMystery(e.currentTarget.checked)}
+          />
+          Modo surpresa
         </label>
         <Show when={props.canShare}>
           <button

@@ -28,6 +28,8 @@ import {
 } from "./extras.mjs";
 import { drawSequence } from "./results.mjs";
 import { ResultsActions, type SavedResult } from "./ResultsActions";
+import { QrShare } from "./QrShare";
+import { reorderOptions, restoreOrder } from "./list-order.mjs";
 import { SettingsPanel } from "./SettingsPanel";
 import {
   activeOptions,
@@ -104,12 +106,17 @@ function App() {
   } catch {}
   const [duration, setDuration] = createSignal(preferences.duration);
   const [volume, setVolume] = createSignal(preferences.volume);
+  const [mystery, setMystery] = createSignal(preferences.mystery);
   createEffect(() => {
     setWheelVolume(volume());
     try {
       localStorage.setItem(
         "volta:settings",
-        JSON.stringify({ duration: duration(), volume: volume() }),
+        JSON.stringify({
+          duration: duration(),
+          volume: volume(),
+          mystery: mystery(),
+        }),
       );
     } catch {}
   });
@@ -202,7 +209,7 @@ function App() {
   const [presentation, setPresentation] = createSignal(false);
   type UndoEntry = { label: string; restore: () => boolean };
   const [undoStack, setUndoStack] = createSignal<UndoEntry[]>([]);
-  const rememberDeletion = (entry: UndoEntry) =>
+  const rememberAction = (entry: UndoEntry) =>
     setUndoStack((stack) => [...stack, entry].slice(-20));
   const undoDelete = () => {
     if (spinning()) return;
@@ -275,7 +282,7 @@ function App() {
           : w,
       ),
     );
-    rememberDeletion({
+    rememberAction({
       label: "Opção excluída.",
       restore: () => {
         const current = wheels().find((w) => w.id === wheelId);
@@ -417,7 +424,12 @@ function App() {
     const change = () => setReduced(media.matches);
     media.addEventListener("change", change);
     const enter = (e: KeyboardEvent) => {
-      if (incoming() || batchSummary()) return;
+      if (
+        incoming() ||
+        batchSummary() ||
+        (e.target as HTMLElement).closest("dialog")
+      )
+        return;
       if (e.key === "Escape" && presentation() && !winner()) {
         e.preventDefault();
         exitPresentation();
@@ -646,7 +658,7 @@ function App() {
     setWheels(next);
     if (wasActive) setActiveId(next[0]?.id || "");
     setWinner(undefined);
-    rememberDeletion({
+    rememberAction({
       label: "Roleta excluída.",
       restore: () => {
         if (
@@ -785,7 +797,7 @@ function App() {
       ),
     );
     setSelectedOptions([]);
-    rememberDeletion({
+    rememberAction({
       label:
         removed.length === 1
           ? "Opção excluída."
@@ -845,7 +857,7 @@ function App() {
     if (spinning()) return;
     const index = sessions().findIndex((s) => s.id === session.id);
     setSessions((all) => all.filter((s) => s.id !== session.id));
-    rememberDeletion({
+    rememberAction({
       label: "Sessão excluída.",
       restore: () => {
         if (sessions().length >= 20) {
@@ -857,6 +869,32 @@ function App() {
           session,
           ...all.slice(index),
         ]);
+        return true;
+      },
+    });
+  };
+  const reorderList = (order: "asc" | "desc" | "shuffle") => {
+    const w = active();
+    if (!w || spinning() || w.options.length < 2) return;
+    const ids = w.options.map((o) => o.id);
+    const options = reorderOptions(w.options, order);
+    if (options.every((o, i) => o.id === ids[i])) {
+      notify("A lista já está nessa ordem.");
+      return;
+    }
+    update((current) => ({ ...current, options }));
+    rememberAction({
+      label: order === "shuffle" ? "Lista embaralhada." : "Lista ordenada.",
+      restore: () => {
+        if (!wheels().some((x) => x.id === w.id)) {
+          notify("Restaure a roleta antes de desfazer a ordem.");
+          return false;
+        }
+        setWheels((all) =>
+          all.map((x) =>
+            x.id === w.id ? { ...x, options: restoreOrder(x.options, ids) } : x,
+          ),
+        );
         return true;
       },
     });
@@ -1012,6 +1050,8 @@ function App() {
             <SettingsPanel
               duration={duration()}
               volume={volume()}
+              mystery={mystery()}
+              onMystery={setMystery}
               busy={spinning()}
               updateBlocked={saveError() || storageBlocked()}
               canShare={mode() === "single" && Boolean(active())}
@@ -1020,13 +1060,16 @@ function App() {
               onShare={shareWheel}
               onMessage={notify}
             />
-
+            <QrShare
+              wheel={mode() === "single" ? active() : undefined}
+              busy={spinning()}
+            />
             <Show when={undoStack().length}>
               <button
                 class="icon-button"
                 disabled={spinning()}
-                aria-label="Desfazer exclusão"
-                title="Desfazer exclusão"
+                aria-label="Desfazer última ação"
+                title="Desfazer última ação"
                 onClick={undoDelete}
               >
                 <ActionIcon name="undo" />
@@ -1147,6 +1190,7 @@ function App() {
                           name={w().name}
                           reduced={reduced()}
                           duration={duration()}
+                          mystery={mystery()}
                           register={(handle) => (singleWheel = handle)}
                         />
                         <div class="spin-controls">
@@ -1421,6 +1465,36 @@ function App() {
                               <details class="list-tools">
                                 <summary>Ferramentas da lista</summary>
                                 <div>
+                                  <button
+                                    type="button"
+                                    class="secondary-button"
+                                    disabled={
+                                      spinning() || w().options.length < 2
+                                    }
+                                    onClick={() => reorderList("asc")}
+                                  >
+                                    Ordenar A–Z
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="secondary-button"
+                                    disabled={
+                                      spinning() || w().options.length < 2
+                                    }
+                                    onClick={() => reorderList("desc")}
+                                  >
+                                    Ordenar Z–A
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="secondary-button"
+                                    disabled={
+                                      spinning() || w().options.length < 2
+                                    }
+                                    onClick={() => reorderList("shuffle")}
+                                  >
+                                    Embaralhar
+                                  </button>
                                   <button
                                     type="button"
                                     class="secondary-button"
@@ -1853,6 +1927,7 @@ function App() {
                       name={wheel().name}
                       reduced={reduced()}
                       duration={duration()}
+                      mystery={mystery()}
                       register={(handle) => controllers.set(id, handle)}
                     />
                     <div class="multi-result" role="status">
@@ -1959,7 +2034,7 @@ function App() {
               Desfazer
             </button>
             <button
-              aria-label="Fechar aviso de exclusão"
+              aria-label="Fechar aviso de desfazer"
               onClick={() => setUndoStack([])}
             >
               <ActionIcon name="close" />

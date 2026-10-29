@@ -21,12 +21,13 @@ export function readSettings(raw) {
     const data = JSON.parse(raw);
     return {
       duration: DURATIONS.includes(data.duration) ? data.duration : 9000,
+      mystery: data.mystery === true,
       volume: Number.isFinite(data.volume)
         ? Math.max(0, Math.min(1, data.volume))
         : 0.7,
     };
   } catch {
-    return { duration: 9000, volume: 0.7 };
+    return { duration: 9000, volume: 0.7, mystery: false };
   }
 }
 export function parseWorkspace(text) {

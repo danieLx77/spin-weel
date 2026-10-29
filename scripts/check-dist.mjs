@@ -46,3 +46,11 @@ const worker = await readFile("dist/sw.js", "utf8");
 assert.ok(worker.includes("SKIP_WAITING"));
 assert.ok(worker.includes(JSON.stringify(base + "index.html")));
 console.log("Manifesto e cache offline validados.");
+
+for (const name of await readdir("dist/assets")) {
+  if (/\.(js|css)$/.test(name))
+    assert.ok(
+      worker.includes(base + "assets/" + name),
+      `Asset ausente no cache offline: ${name}`,
+    );
+}

@@ -84,10 +84,15 @@ test("duplicados consideram acentos, caixa e espaços sem remover participaçõe
   assert.deepEqual([...ids], ["1", "2"]);
 });
 test("preferências inválidas voltam ao padrão e volume é limitado", () => {
-  assert.deepEqual(readSettings("invalid"), { duration: 9000, volume: 0.7 });
+  assert.deepEqual(readSettings("invalid"), {
+    duration: 9000,
+    volume: 0.7,
+    mystery: false,
+  });
   assert.deepEqual(readSettings('{"duration":4000,"volume":9}'), {
     duration: 4000,
     volume: 1,
+    mystery: false,
   });
 });
 test("sessões excessivas ou malformadas não são descartadas silenciosamente", () => {
@@ -109,4 +114,10 @@ test("sessões excessivas ou malformadas não são descartadas silenciosamente",
       }),
     ),
   );
+});
+
+test("modo surpresa é opt-in e aceita somente booleano", () => {
+  assert.equal(readSettings('{"mystery":true}').mystery, true);
+  assert.equal(readSettings('{"mystery":"true"}').mystery, false);
+  assert.equal(readSettings(null).mystery, false);
 });

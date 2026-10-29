@@ -46,9 +46,11 @@ export function ActionIcon(props: {
     | "undo"
     | "settings"
     | "eye"
-    | "eyeOff";
+    | "eyeOff"
+    | "qr";
 }) {
   const paths = {
+    qr: "M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM19 13h2v4m-8-4h2m-2 6v2h4m2-2h2v2h-2",
     eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
     eyeOff:
       "m3 3 18 18M10.6 5.1 12 5c6.5 0 10 7 10 7a19 19 0 0 1-3 3.8M6.2 6.2A20 20 0 0 0 2 12s3.5 7 10 7a12 12 0 0 0 5.8-1.8M10 10a3 3 0 0 0 4 4",

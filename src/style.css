@@ -2142,3 +2142,44 @@ summary:focus-visible {
   color: var(--muted);
   font-size: 13px;
 }
+
+.mystery-setting {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.mystery-setting input {
+  accent-color: var(--primary);
+}
+.qr-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.qr-heading h2 {
+  margin: 0;
+}
+.qr-image {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  margin: 16px auto;
+}
+.qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.qr-error {
+  margin-top: 16px;
+  color: #b91c1c;
+  font-size: 14px;
+}
+.presentation .qr-toggle {
+  display: none;
+}
