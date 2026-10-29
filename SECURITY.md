@@ -35,3 +35,9 @@ Referências: [CSP no Vite](https://vite.dev/guide/features#content-security-pol
 A hospedagem em `https://danielx77.github.io/spin-weel/` aplica a CSP presente no HTML e a política de referência por meta. GitHub Pages não interpreta `dist/_headers`: não se deve considerar `frame-ancestors`, `X-Frame-Options` ou `Permissions-Policy` personalizados como ativos nessa plataforma. Não há contas, credenciais ou ações financeiras no aplicativo. Se proteção por cabeçalhos próprios for requisito futuro, será necessária uma hospedagem que os suporte.
 
 As dependências são instaladas pelo lockfile; Actions oficiais ficam fixadas por SHA. A publicação só ocorre após testes, verificação de vulnerabilidades graves e validação dos assets. Permissões de publicação e OIDC ficam restritas ao job de deploy, que depende do build e só executa na `main`.
+
+## Compartilhamento e cache offline
+
+Links são limitados a 8.000 caracteres, validados antes de exibir a prévia e importados apenas após ação do usuário. O fragmento contém a configuração em texto codificado, sem criptografia: não deve carregar informações sigilosas. Não há encurtador, banco de dados ou upload de opções.
+
+CSV é tratado como dados de texto; células não são executadas e cores aceitam somente hexadecimal. Sessões e preferências têm limites próprios. O cache offline contém exclusivamente arquivos estáticos do aplicativo, não backups ou dados do usuário; o service worker se restringe à própria origem e ao subcaminho de publicação. Atualizações não recarregam a página automaticamente durante uma tarefa.

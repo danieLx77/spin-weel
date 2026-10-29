@@ -53,3 +53,17 @@ Consulte [a auditoria de produção](docs/PRODUCTION-AUDIT.md) para as verifica�
 - O botão de apresentação oculta o editor e a navegação. Usa tela cheia quando disponível; o botão de sair ou Escape retorna ao modo normal. Funciona também com várias roletas.
 - “Sem repetição” retira os vencedores apenas da rodada. “Reiniciar rodada” restaura todas as participações; as opções e seus dados continuam no editor. A rodada é salva junto com o backup, inclusive quando resta apenas uma opção elegível.
 - Exclusões de roletas e opções podem ser desfeitas pelo aviso, pelo botão da barra ou por Ctrl/Cmd+Z fora dos campos de edição. Até 20 exclusões ficam disponíveis durante a sessão; recarregar ou fechar o aviso limpa essa recuperação.
+
+## Configurações, listas e sessões
+
+- Configurações reúne duração do giro (4, 9 ou 14 segundos), volume, compartilhamento e instalação.
+- Links compartilham uma cópia de uma roleta pelo fragmento do endereço, sem servidor. Não incluem histórico nem vencedores já retirados da rodada. Há limite de 8.000 caracteres; para listas maiores, use backup. Quem recebe o link vê uma prévia antes de adicionar a roleta. O link não é criptografado.
+- O editor permite busca sem distinção de caixa/acentos, filtro de duplicados, seleção múltipla e exclusão em lote com desfazer.
+- CSV aceita uma opção por linha, vírgula, ponto e vírgula ou tabulação, aspas escapadas e cabeçalho opcional `nome,cor`. A coluna de cor é opcional e aceita hexadecimal de seis dígitos. Sem cabeçalho, é usada a primeira coluna. Limites: 5 MB, 500 opções por roleta e 100 caracteres por campo.
+- Até 20 sessões guardam combinações de até 6 roletas. Sessões também acompanham os backups; referências são reconstruídas ao importar ou recarregar.
+
+## Instalação e offline
+
+O build gera manifesto, ícones e service worker. A instalação depende do navegador: use “Instalar aplicativo” em Configurações ou a opção equivalente do menu do navegador. No Safari, use Compartilhar → Adicionar à Tela de Início.
+
+Depois do primeiro acesso online e da preparação do cache, a aplicação abre e funciona offline. Uma atualização fica pendente até a ação “Atualizar aplicativo”; giros e recuperação de dados bloqueiam a atualização. O worker só controla o próprio subcaminho e remove apenas caches do Volta nesse escopo. A disponibilidade offline depende de o navegador preservar seu cache.
