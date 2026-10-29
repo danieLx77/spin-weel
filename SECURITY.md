@@ -41,3 +41,7 @@ As dependências são instaladas pelo lockfile; Actions oficiais ficam fixadas p
 Links são limitados a 8.000 caracteres, validados antes de exibir a prévia e importados apenas após ação do usuário. O fragmento contém a configuração em texto codificado, sem criptografia: não deve carregar informações sigilosas. Não há encurtador, banco de dados ou upload de opções.
 
 CSV é tratado como dados de texto; células não são executadas e cores aceitam somente hexadecimal. Sessões e preferências têm limites próprios. O cache offline contém exclusivamente arquivos estáticos do aplicativo, não backups ou dados do usuário; o service worker se restringe à própria origem e ao subcaminho de publicação. Atualizações não recarregam a página automaticamente durante uma tarefa.
+
+## Exportação de resultados
+
+O CSV de resultados escapa aspas, vírgulas e quebras de linha, e prefixa conteúdo que possa ser interpretado como fórmula por planilhas. A geração e o download acontecem localmente. A sequência registra apenas animações concluídas e respeita opções desativadas e os limites da rodada.
