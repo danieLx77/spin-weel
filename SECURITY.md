@@ -47,3 +47,9 @@ CSV é tratado como dados de texto; células não são executadas e cores aceita
 O CSV de resultados escapa aspas, vírgulas e quebras de linha, e prefixa conteúdo que possa ser interpretado como fórmula por planilhas. A geração e o download acontecem localmente. A sequência registra apenas animações concluídas e respeita opções desativadas e os limites da rodada.
 
 QR Codes são gerados localmente, sem serviço externo ou encurtador, a partir do mesmo link validado de compartilhamento. Não tornam o conteúdo sigiloso. O modo surpresa oculta apenas a representação da roda e não é um controle de acesso aos nomes. O limite menor do QR Code protege a legibilidade e limita o trabalho de codificação. A biblioteca de geração é fixada por versão no lockfile e carregada sob demanda; a biblioteca de leitura não entra no aplicativo.
+
+## Cache sob demanda e diagnóstico
+
+O worker só guarda respostas bem-sucedidas de arquivos estáticos presentes na lista gerada pelo build. Mensagens de preparação offline aceitam até 20 caminhos conhecidos; não permitem baixar URLs arbitrárias. Atualizações migram apenas módulos opcionais com caminho de conteúdo reconhecido na nova versão e removem caches do próprio escopo.
+
+O diagnóstico é opt-in e não usa `fetch`, beacon, analytics ou serviços externos para transmitir métricas. Mantém até 30 registros locais com identificador aleatório, data e valores numéricos de TTFB/FCP/LCP/CLS/INP. A leitura e a exportação descartam campos desconhecidos. Roletas e métricas usam chaves separadas. A biblioteca oficial `web-vitals` está fixada no lockfile e fica fora do pré-cache inicial.
