@@ -1,3 +1,4 @@
+import { serviceWorkerSource } from "./service-worker.mjs";
 import { createHash } from "node:crypto";
 export function pwaPlugin(base) {
   return {
@@ -39,26 +40,42 @@ export function pwaPlugin(base) {
         )
         .digest("hex")
         .slice(0, 16);
-      const prefix = `volta:${base}:`,
-        cache = prefix + version;
-      const files = [
+      const coreFiles = new Set();
+      const include = (name) => {
+        if (coreFiles.has(name)) return;
+        coreFiles.add(name);
+        const item = bundle[name];
+        if (item?.type === "chunk") {
+          for (const dependency of item.imports) include(dependency);
+          for (const css of item.viteMetadata?.importedCss || [])
+            coreFiles.add(css);
+        }
+      };
+      for (const [name, item] of Object.entries(bundle))
+        if (item.type === "chunk" && item.isEntry) include(name);
+      const core = [
         base,
-        `${base}index.html`,
-        ...Object.keys(bundle)
-          .filter((name) => /\.(js|css)$/.test(name))
-          .map((name) => base + name),
+        ...[...coreFiles].map((name) => base + name),
+        `${base}manifest.webmanifest`,
         `${base}icons/icon-192.png`,
+      ];
+      const optional = [
+        ...Object.keys(bundle)
+          .filter((name) => /\.(js|css)$/.test(name) && !coreFiles.has(name))
+          .map((name) => base + name),
         `${base}icons/icon-512.png`,
         `${base}icons/apple-touch-icon.png`,
-        `${base}manifest.webmanifest`,
       ];
-      const sw = `const CACHE=${JSON.stringify(cache)},PREFIX=${JSON.stringify(prefix)},FILES=${JSON.stringify(files)};
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES))));
-self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith(PREFIX)&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
-self.addEventListener('message',event=>{if(event.data==='SKIP_WAITING')self.skipWaiting();});
-self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(${JSON.stringify(base)}))return;
-if(event.request.mode==='navigate'){event.respondWith(fetch(event.request).catch(()=>caches.open(CACHE).then(cache=>cache.match(${JSON.stringify(base + "index.html")}))));return;}
-event.respondWith(caches.open(CACHE).then(cache=>cache.match(event.request,{ignoreVary:true}).then(cached=>cached||fetch(event.request))));});`;
+      const prefix = `volta:${base}:`;
+      const cache =
+        prefix +
+        createHash("sha256")
+          .update(version)
+          .update(serviceWorkerSource.toString())
+          .update(JSON.stringify({ core, optional }))
+          .digest("hex")
+          .slice(0, 16);
+      const sw = serviceWorkerSource({ base, cache, prefix, core, optional });
       this.emitFile({ type: "asset", fileName: "sw.js", source: sw });
       this.emitFile({
         type: "asset",

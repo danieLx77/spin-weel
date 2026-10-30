@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, Show, type Component } from "solid-js";
 import { OfflineControls } from "./OfflineControls";
 import { ActionIcon } from "./Icons";
 export function SettingsPanel(props: {
@@ -14,6 +14,26 @@ export function SettingsPanel(props: {
   onShare: () => Promise<string | undefined>;
   onMessage: (text: string) => void;
 }) {
+  const [diagnosticsOpen, setDiagnosticsOpen] = createSignal(false);
+  const [Diagnostics, setDiagnostics] =
+    createSignal<Component<{ busy: boolean }>>();
+  const [diagnosticsError, setDiagnosticsError] = createSignal("");
+  let diagnosticsLoading = false;
+  const openDiagnostics = async (open: boolean) => {
+    setDiagnosticsOpen(open);
+    if (!open || Diagnostics() || diagnosticsLoading) return;
+    diagnosticsLoading = true;
+    try {
+      const module = await import("./PerformanceDiagnostics");
+      setDiagnostics(() => module.default);
+    } catch {
+      setDiagnosticsError(
+        "Conecte-se e recarregue a página para abrir o diagnóstico pela primeira vez.",
+      );
+    } finally {
+      diagnosticsLoading = false;
+    }
+  };
   const [link, setLink] = createSignal("");
   const [surpriseTip, setSurpriseTip] = createSignal(false);
   return (
@@ -102,6 +122,27 @@ export function SettingsPanel(props: {
             </p>
           </Show>
         </Show>
+        <details
+          class="performance-panel"
+          onToggle={(e) => void openDiagnostics(e.currentTarget.open)}
+        >
+          <summary>Desempenho</summary>
+          <Show when={diagnosticsOpen()}>
+            <Show
+              when={Diagnostics()}
+              fallback={
+                <p class="muted" role="status">
+                  {diagnosticsError() || "Carregando diagnóstico…"}
+                </p>
+              }
+            >
+              {(Panel) => {
+                const Component = Panel();
+                return <Component busy={props.busy} />;
+              }}
+            </Show>
+          </Show>
+        </details>
         <OfflineControls
           busy={props.busy || props.updateBlocked}
           onMessage={props.onMessage}

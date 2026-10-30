@@ -1,3 +1,4 @@
+import { cacheLoadedFeatures } from "./offline-feature";
 import { createSignal, Show, onCleanup } from "solid-js";
 import { ActionIcon } from "./Icons";
 import { createShareLink } from "./extras.mjs";
@@ -40,6 +41,7 @@ export function QrShare(props: { wheel?: SharedWheel; busy: boolean }) {
       const link = createShareLink(wheel, location.href);
       setUrl(link);
       const matrix = await makeQRMatrix(link);
+      cacheLoadedFeatures();
       if (request !== token) return;
       const canvas = document.createElement("canvas"),
         cell = 4,

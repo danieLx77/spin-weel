@@ -1,3 +1,5 @@
+import { restoreDiagnostics } from "./performance-loader";
+import { optionPage, EDITOR_PAGE_SIZE } from "./render-state.mjs";
 import { render } from "solid-js/web";
 import {
   createSignal,
@@ -145,7 +147,7 @@ function App() {
   const [sessionName, setSessionName] = createSignal("");
   const [wheels, setWheels] = createSignal<Wheel[]>(initial);
   const [activeId, setActiveId] = createSignal(initial[0]?.id || "");
-  const active = () => wheels().find((w) => w.id === activeId());
+  const active = createMemo(() => wheels().find((w) => w.id === activeId()));
   const [spinning, setSpinning] = createSignal(false),
     [winner, setWinner] = createSignal<Option>(),
     [tab, setTab] = createSignal("options"),
@@ -207,6 +209,27 @@ function App() {
         String(Math.min(Math.max(1, available), Number(value) || 3)),
       );
   });
+  const [editorPage, setEditorPage] = createSignal(0);
+  const editorMatches = createMemo(() =>
+    (active()?.options || [])
+      .map((option, index) => ({ option, index }))
+      .filter((row) => matchesOption(row.option)),
+  );
+  const editorWindow = createMemo(() =>
+    optionPage(editorMatches(), editorPage()),
+  );
+  let optionList: HTMLDivElement | undefined;
+  createEffect(() => {
+    activeId();
+    query();
+    onlyDuplicates();
+    setEditorPage(0);
+    if (optionList) optionList.scrollTop = 0;
+  });
+  const changeEditorPage = (index: number) => {
+    setEditorPage(index);
+    if (optionList) optionList.scrollTop = 0;
+  };
   const [presentation, setPresentation] = createSignal(false);
   type UndoEntry = { label: string; restore: () => boolean };
   const [undoStack, setUndoStack] = createSignal<UndoEntry[]>([]);
@@ -401,11 +424,13 @@ function App() {
   };
   createEffect(() => {
     if (storageBlocked() || spinning()) return;
-    snapshot(); // Track edits; serialize the latest state only when writing.
+    wheels();
+    sessions(); // Track references; normalize and serialize only when writing.
     const t = setTimeout(persist, 350);
     onCleanup(() => clearTimeout(t));
   });
   onMount(() => {
+    restoreDiagnostics();
     const openShare = () => {
       try {
         const wheel = parseSharedWheel(location.hash);
@@ -500,12 +525,14 @@ function App() {
   });
   const add = () => {
     if (!active() || active()!.options.length >= 500) return;
+    const id = uid(),
+      index = active()!.options.length;
     update((w) => ({
       ...w,
       options: [
         ...w.options,
         {
-          id: uid(),
+          id,
           label: `Opção ${w.options.length + 1}`,
           color: optionColors(
             1,
@@ -514,6 +541,10 @@ function App() {
         },
       ],
     }));
+    setSearch("");
+    setOnlyDuplicates(false);
+    changeEditorPage(Math.floor(index / EDITOR_PAGE_SIZE));
+    queueMicrotask(() => document.getElementById(`option-${id}`)?.focus());
   };
   const spin = async () => {
     const w = active();
@@ -1549,7 +1580,7 @@ function App() {
                                         )
                                       }
                                     >
-                                      Selecionar visíveis
+                                      Selecionar filtradas
                                     </button>
                                     <button
                                       type="button"
@@ -1564,100 +1595,132 @@ function App() {
                                   </Show>
                                 </div>
                               </details>
-                              <Show when={!w().options.some(matchesOption)}>
+                              <Show when={!editorMatches().length}>
                                 <p class="muted">Nenhuma opção encontrada.</p>
                               </Show>
                               <fieldset disabled={spinning()}>
-                                <div class="option-list">
-                                  <Index each={w().options}>
-                                    {(o, i) => (
-                                      <div
-                                        class="option-row"
-                                        hidden={!matchesOption(o())}
-                                        classList={{
-                                          "option-disabled": Boolean(
-                                            o().disabled,
-                                          ),
-                                          "option-drawn": Boolean(
-                                            w().noRepeat && o().drawn,
-                                          ),
-                                        }}
-                                      >
-                                        <Show when={picking()}>
-                                          <label class="selection-cell">
-                                            <input
-                                              class="option-select"
-                                              type="checkbox"
-                                              aria-label={`Selecionar ${o().label}`}
-                                              checked={selectedOptions().includes(
-                                                o().id,
-                                              )}
-                                              onChange={(e) =>
-                                                setSelectedOptions((ids) =>
-                                                  e.currentTarget.checked
-                                                    ? [...ids, o().id]
-                                                    : ids.filter(
-                                                        (id) => id !== o().id,
-                                                      ),
-                                                )
+                                <div class="option-list" ref={optionList}>
+                                  <Index each={editorWindow().rows}>
+                                    {(entry) => {
+                                      const o = () => entry().option,
+                                        i = () => entry().index;
+                                      return (
+                                        <div
+                                          class="option-row"
+                                          classList={{
+                                            "option-disabled": Boolean(
+                                              o().disabled,
+                                            ),
+                                            "option-drawn": Boolean(
+                                              w().noRepeat && o().drawn,
+                                            ),
+                                          }}
+                                        >
+                                          <Show when={picking()}>
+                                            <label class="selection-cell">
+                                              <input
+                                                class="option-select"
+                                                type="checkbox"
+                                                aria-label={`Selecionar ${o().label}`}
+                                                checked={selectedOptions().includes(
+                                                  o().id,
+                                                )}
+                                                onChange={(e) =>
+                                                  setSelectedOptions((ids) =>
+                                                    e.currentTarget.checked
+                                                      ? [...ids, o().id]
+                                                      : ids.filter(
+                                                          (id) => id !== o().id,
+                                                        ),
+                                                  )
+                                                }
+                                              />
+                                            </label>
+                                          </Show>
+                                          <div class="reorder">
+                                            <button
+                                              aria-label={`Mover ${o().label} para cima`}
+                                              disabled={i() === 0 || spinning()}
+                                              onClick={() => move(i(), -1)}
+                                            >
+                                              <ActionIcon name="up" />
+                                            </button>
+                                            <button
+                                              aria-label={`Mover ${o().label} para baixo`}
+                                              disabled={
+                                                i() ===
+                                                  w().options.length - 1 ||
+                                                spinning()
                                               }
-                                            />
-                                          </label>
-                                        </Show>
-                                        <div class="reorder">
+                                              onClick={() => move(i(), 1)}
+                                            >
+                                              <ActionIcon name="down" />
+                                            </button>
+                                          </div>
+                                          <input
+                                            class="color-input"
+                                            type="color"
+                                            value={o().color}
+                                            aria-label={`Cor de ${o().label}`}
+                                            onInput={(e) => {
+                                              const color =
+                                                e.currentTarget.value;
+                                              update((x) => ({
+                                                ...x,
+                                                options: x.options.map(
+                                                  (item) =>
+                                                    item.id === o().id
+                                                      ? { ...item, color }
+                                                      : item,
+                                                ),
+                                              }));
+                                            }}
+                                          />
+                                          <input
+                                            id={`option-${o().id}`}
+                                            class="option-input"
+                                            aria-label={`Opção ${i() + 1}${o().disabled ? " (desativada)" : ""}`}
+                                            maxLength={100}
+                                            value={o().label}
+                                            onInput={(e) => {
+                                              const label =
+                                                e.currentTarget.value;
+                                              update((x) => ({
+                                                ...x,
+                                                options: x.options.map(
+                                                  (item) =>
+                                                    item.id === o().id
+                                                      ? { ...item, label }
+                                                      : item,
+                                                ),
+                                              }));
+                                            }}
+                                            onBlur={() => {
+                                              if (!o().label.trim())
+                                                update((x) => ({
+                                                  ...x,
+                                                  options: x.options.map(
+                                                    (item) =>
+                                                      item.id === o().id
+                                                        ? {
+                                                            ...item,
+                                                            label: `Opção ${i() + 1}`,
+                                                          }
+                                                        : item,
+                                                  ),
+                                                }));
+                                            }}
+                                          />
                                           <button
-                                            aria-label={`Mover ${o().label} para cima`}
-                                            disabled={i === 0 || spinning()}
-                                            onClick={() => move(i, -1)}
-                                          >
-                                            <ActionIcon name="up" />
-                                          </button>
-                                          <button
-                                            aria-label={`Mover ${o().label} para baixo`}
-                                            disabled={
-                                              i === w().options.length - 1 ||
-                                              spinning()
+                                            class="toggle-option"
+                                            aria-pressed={!o().disabled}
+                                            aria-label={`${o().disabled ? "Ativar" : "Desativar"} ${o().label}`}
+                                            title={
+                                              o().disabled
+                                                ? "Ativar opção"
+                                                : "Desativar opção"
                                             }
-                                            onClick={() => move(i, 1)}
-                                          >
-                                            <ActionIcon name="down" />
-                                          </button>
-                                        </div>
-                                        <input
-                                          class="color-input"
-                                          type="color"
-                                          value={o().color}
-                                          aria-label={`Cor de ${o().label}`}
-                                          onInput={(e) => {
-                                            const color = e.currentTarget.value;
-                                            update((x) => ({
-                                              ...x,
-                                              options: x.options.map((item) =>
-                                                item.id === o().id
-                                                  ? { ...item, color }
-                                                  : item,
-                                              ),
-                                            }));
-                                          }}
-                                        />
-                                        <input
-                                          class="option-input"
-                                          aria-label={`Opção ${i + 1}${o().disabled ? " (desativada)" : ""}`}
-                                          maxLength={100}
-                                          value={o().label}
-                                          onInput={(e) => {
-                                            const label = e.currentTarget.value;
-                                            update((x) => ({
-                                              ...x,
-                                              options: x.options.map((item) =>
-                                                item.id === o().id
-                                                  ? { ...item, label }
-                                                  : item,
-                                              ),
-                                            }));
-                                          }}
-                                          onBlur={() => {
-                                            if (!o().label.trim())
+                                            onClick={() =>
                                               update((x) => ({
                                                 ...x,
                                                 options: x.options.map(
@@ -1665,55 +1728,80 @@ function App() {
                                                     item.id === o().id
                                                       ? {
                                                           ...item,
-                                                          label: `Opção ${i + 1}`,
+                                                          disabled:
+                                                            !item.disabled,
                                                         }
                                                       : item,
                                                 ),
-                                              }));
-                                          }}
-                                        />
-                                        <button
-                                          class="toggle-option"
-                                          aria-pressed={!o().disabled}
-                                          aria-label={`${o().disabled ? "Ativar" : "Desativar"} ${o().label}`}
-                                          title={
-                                            o().disabled
-                                              ? "Ativar opção"
-                                              : "Desativar opção"
-                                          }
-                                          onClick={() =>
-                                            update((x) => ({
-                                              ...x,
-                                              options: x.options.map((item) =>
-                                                item.id === o().id
-                                                  ? {
-                                                      ...item,
-                                                      disabled: !item.disabled,
-                                                    }
-                                                  : item,
-                                              ),
-                                            }))
-                                          }
-                                        >
-                                          <ActionIcon
-                                            name={
-                                              o().disabled ? "eyeOff" : "eye"
+                                              }))
                                             }
-                                          />
-                                        </button>
-                                        <button
-                                          class="remove-option"
-                                          aria-label={`Remover ${o().label}`}
-                                          onClick={() =>
-                                            removeOption(w().id, o().id)
-                                          }
-                                        >
-                                          <ActionIcon name="close" />
-                                        </button>
-                                      </div>
-                                    )}
+                                          >
+                                            <ActionIcon
+                                              name={
+                                                o().disabled ? "eyeOff" : "eye"
+                                              }
+                                            />
+                                          </button>
+                                          <button
+                                            class="remove-option"
+                                            aria-label={`Remover ${o().label}`}
+                                            onClick={() =>
+                                              removeOption(w().id, o().id)
+                                            }
+                                          >
+                                            <ActionIcon name="close" />
+                                          </button>
+                                        </div>
+                                      );
+                                    }}
                                   </Index>
                                 </div>
+                                <Show when={editorWindow().last > 0}>
+                                  <nav
+                                    class="option-pagination"
+                                    aria-label="Páginas das opções"
+                                  >
+                                    <button
+                                      class="secondary-button"
+                                      disabled={
+                                        spinning() || editorWindow().index === 0
+                                      }
+                                      onClick={() =>
+                                        changeEditorPage(
+                                          editorWindow().index - 1,
+                                        )
+                                      }
+                                    >
+                                      Anteriores
+                                    </button>
+                                    <span aria-live="polite">
+                                      {editorWindow().index * EDITOR_PAGE_SIZE +
+                                        1}
+                                      –
+                                      {Math.min(
+                                        (editorWindow().index + 1) *
+                                          EDITOR_PAGE_SIZE,
+                                        editorMatches().length,
+                                      )}{" "}
+                                      de {editorMatches().length}
+                                    </span>
+                                    <button
+                                      class="secondary-button"
+                                      disabled={
+                                        spinning() ||
+                                        editorWindow().index ===
+                                          editorWindow().last
+                                      }
+                                      onClick={() =>
+                                        changeEditorPage(
+                                          editorWindow().index + 1,
+                                        )
+                                      }
+                                    >
+                                      Próximas
+                                    </button>
+                                  </nav>
+                                </Show>
                                 <button
                                   class="add-option"
                                   disabled={
@@ -1893,7 +1981,9 @@ function App() {
           <div class="multi-grid">
             <For each={selectedWheels()}>
               {(id) => {
-                const wheel = () => wheels().find((w) => w.id === id)!;
+                const wheel = createMemo(() =>
+                  wheels().find((w) => w.id === id)!,
+                );
                 return (
                   <section class="play-card multi-card">
                     <div class="multi-card-heading">

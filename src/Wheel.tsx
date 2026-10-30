@@ -1,3 +1,4 @@
+import { sameWheelAppearance } from "./render-state.mjs";
 import { prepareWheelSound, playWheelClick } from "./sound";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { spinProgress, targetRotation, labelColor } from "./logic.mjs";
@@ -26,7 +27,8 @@ export function Wheel(props: {
     if (
       !canvas ||
       busy ||
-      (options === previousOptions && mystery === previousMystery)
+      (sameWheelAppearance(previousOptions, options) &&
+        mystery === previousMystery)
     )
       return;
     previousMystery = mystery;

@@ -10,7 +10,14 @@ export async function makeQRMatrix(url) {
     throw new Error(
       "Esta roleta é grande demais para um QR Code legível. Use Copiar link ou Exportar backup.",
     );
-  const { default: qrcode } = await import("qrcode-generator");
+  let qrcode;
+  try {
+    ({ default: qrcode } = await import("qrcode-generator"));
+  } catch {
+    throw new Error(
+      "Para gerar o QR Code pela primeira vez, conecte-se à internet e recarregue a página. Depois do primeiro uso, ele ficará disponível offline.",
+    );
+  }
   const code = qrcode(0, "M");
   code.addData(url, "Byte");
   code.make();
