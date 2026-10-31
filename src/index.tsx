@@ -1224,6 +1224,8 @@ function App() {
                           duration={duration()}
                           mystery={mystery()}
                           register={(handle) => (singleWheel = handle)}
+                          disabled={spinning() || !canSpin(w())}
+                          onSpin={() => void spin()}
                         />
                         <div class="spin-controls">
                           <button
@@ -2020,6 +2022,8 @@ function App() {
                       duration={duration()}
                       mystery={mystery()}
                       register={(handle) => controllers.set(id, handle)}
+                      disabled={runningIds().includes(id) || !canSpin(wheel())}
+                      onSpin={() => void spinMulti(id)}
                     />
                     <div class="multi-result" role="status">
                       <Show when={multiResults()[id]}>

@@ -23,8 +23,9 @@ A pasta `dist` pode ser hospedada em qualquer servidor estático com HTTPS. `cry
 
 - Criar, editar, duplicar e excluir roletas.
 - Personalizar, reordenar e adicionar opções em lote (até 500 por roleta).
-- Sorteio animado em Canvas, com giro de 9 segundos, aceleração suave, desaceleração, pinos e ponteiro com efeito de mola. Respeita movimento reduzido.
+- Sorteio animado em Canvas, com giro de 9 segundos, aceleração suave, desaceleração, pinos e ponteiro com efeito de mola. A preferência por movimento reduzido desativa efeitos decorativos, mas mantém o giro solicitado pelo botão e sua duração configurada.
 - Modo simultâneo com até 6 roletas, giro individual ou conjunto e resultados independentes.
+- Clique ou toque no botão central da roleta para girá-la; também funciona com Enter ou Espaço ao focar o botão. O centro fica desativado durante o giro ou quando não há opções suficientes.
 - Histórico de até 20 resultados por roleta e remoção opcional do vencedor.
 - Salvamento automático, importação e exportação de backups JSON.
 - Interface responsiva e controles por teclado.
@@ -57,6 +58,7 @@ Consulte [a auditoria de produção](docs/PRODUCTION-AUDIT.md) para as verifica�
 ## Configurações, listas e sessões
 
 - Configurações reúne duração do giro (4, 9 ou 14 segundos), volume, compartilhamento e instalação.
+- A duração do giro conta o tempo de animação exibida. Pausas da aba ou travamentos prolongam o sorteio em vez de fazê-lo saltar diretamente para o resultado.
 - Links compartilham uma cópia de uma roleta pelo fragmento do endereço, sem servidor. Não incluem histórico nem o progresso da rodada. Opções desativadas continuam desativadas na cópia. Há limite de 8.000 caracteres; para listas maiores, use backup. Quem recebe o link vê uma prévia antes de adicionar a roleta. O link não é criptografado.
 - O editor permite busca sem distinção de caixa/acentos, filtro de duplicados, seleção múltipla e exclusão em lote com desfazer.
 - CSV aceita uma opção por linha, vírgula, ponto e vírgula ou tabulação, aspas escapadas e cabeçalho opcional `nome,cor`. A coluna de cor é opcional e aceita hexadecimal de seis dígitos. Sem cabeçalho, é usada a primeira coluna. Limites: 5 MB, 500 opções por roleta e 100 caracteres por campo.

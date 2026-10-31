@@ -506,6 +506,10 @@ h1 {
   z-index: 6;
 }
 .wheel-center {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #27272a;
   position: absolute;
   left: 50%;
   top: 50%;
@@ -516,6 +520,19 @@ h1 {
   border: 1px solid #d4d4d8;
   border-radius: 50%;
   box-shadow: 0 2px 5px #00000012;
+}
+.wheel-center svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+.wheel-center:hover:not(:disabled) {
+  background: #f4f4f5;
+  border-color: #71717a;
+}
+.wheel-center:disabled {
+  opacity: 1;
+  color: #a1a1aa;
 }
 .fairness {
   order: 3;
@@ -927,8 +944,8 @@ h1 {
   width: min(91%, 350px);
 }
 .multi-card .wheel-center {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
 }
 .multi-result {
   order: 4;

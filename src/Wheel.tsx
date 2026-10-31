@@ -2,6 +2,7 @@ import { sameWheelAppearance } from "./render-state.mjs";
 import { prepareWheelSound, playWheelClick } from "./sound";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { spinProgress, targetRotation, labelColor } from "./logic.mjs";
+import { createSpinClock } from "./spin-clock.mjs";
 export type WheelOption = { id: string; label: string; color: string };
 export type WheelHandle = { spin: (index: number) => Promise<boolean> };
 export function Wheel(props: {
@@ -10,6 +11,8 @@ export function Wheel(props: {
   reduced: boolean;
   duration: number;
   mystery: boolean;
+  disabled: boolean;
+  onSpin: () => void;
   register: (handle: WheelHandle) => void;
 }) {
   let canvas!: HTMLCanvasElement;
@@ -104,16 +107,17 @@ export function Wheel(props: {
         busy = true;
         const from = angle,
           to = targetRotation(from, index, props.options.length);
-        const duration = props.reduced ? 0 : props.duration;
+        // This animation is explicitly requested by the spin button. Reduced
+        // motion disables the decorative pointer bounce, not the spin itself.
+        const progress = createSpinClock(props.duration);
         const slice = 360 / props.options.length;
         let previousBoundary = Math.floor(from / slice),
           lastHit = -1000;
-        const started = performance.now();
         frame.classList.add("is-spinning");
         return new Promise<boolean>((resolve) => {
           finish = resolve;
           const tick = (now: number) => {
-            const t = duration ? Math.min(1, (now - started) / duration) : 1;
+            const t = progress(now);
             angle = from + (to - from) * spinProgress(t);
             canvas.style.transform = `rotate(${angle}deg)`;
             const boundary = Math.floor((angle + 1e-7) / slice);
@@ -158,7 +162,18 @@ export function Wheel(props: {
           role="img"
           aria-label={`Roleta ${props.name}, ${props.options.length} ${props.options.length === 1 ? "opção" : "opções"}${props.mystery ? ", nomes ocultos" : ""}`}
         />
-        <div class="wheel-center" aria-hidden="true" />
+        <button
+          type="button"
+          class="wheel-center"
+          aria-label={`Girar roleta ${props.name}`}
+          title="Girar roleta"
+          disabled={props.disabled}
+          onClick={() => { if (!busy && !props.disabled) props.onSpin(); }}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m9 6 9 6-9 6Z" />
+          </svg>
+        </button>
       </div>
     </div>
   );
