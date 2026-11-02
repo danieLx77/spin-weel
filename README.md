@@ -23,7 +23,7 @@ A pasta `dist` pode ser hospedada em qualquer servidor estático com HTTPS. `cry
 
 - Criar, editar, duplicar e excluir roletas.
 - Personalizar, reordenar e adicionar opções em lote (até 500 por roleta).
-- Sorteio animado em Canvas, com giro de 9 segundos, aceleração suave, desaceleração, pinos e ponteiro com efeito de mola. A preferência por movimento reduzido desativa efeitos decorativos, mas mantém o giro solicitado pelo botão e sua duração configurada.
+- Sorteio animado em Canvas, com giro de 9 segundos, aceleração suave, desaceleração, pinos e ponteiro com efeito de mola. A preferência por movimento reduzido mantém uma reação curta do ponteiro aos pinos, sem oscilação de mola, e preserva o giro solicitado pelo botão e sua duração configurada.
 - Modo simultâneo com até 6 roletas, giro individual ou conjunto e resultados independentes.
 - Clique ou toque no botão central da roleta para girá-la; também funciona com Enter ou Espaço ao focar o botão. O centro fica desativado durante o giro ou quando não há opções suficientes.
 - Histórico de até 20 resultados por roleta e remoção opcional do vencedor.

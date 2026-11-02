@@ -3,6 +3,7 @@ import { prepareWheelSound, playWheelClick } from "./sound";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { spinProgress, targetRotation, labelColor } from "./logic.mjs";
 import { createSpinClock } from "./spin-clock.mjs";
+import { pointerDeflection } from "./pointer-motion.mjs";
 export type WheelOption = { id: string; label: string; color: string };
 export type WheelHandle = { spin: (index: number) => Promise<boolean> };
 export function Wheel(props: {
@@ -108,7 +109,7 @@ export function Wheel(props: {
         const from = angle,
           to = targetRotation(from, index, props.options.length);
         // This animation is explicitly requested by the spin button. Reduced
-        // motion disables the decorative pointer bounce, not the spin itself.
+        // motion softens the pointer response, not the spin itself.
         const progress = createSpinClock(props.duration);
         const slice = 360 / props.options.length;
         let previousBoundary = Math.floor(from / slice),
@@ -127,10 +128,7 @@ export function Wheel(props: {
               previousBoundary = boundary;
             }
             const elapsed = now - lastHit;
-            const deflection =
-              props.reduced || elapsed > 210
-                ? 0
-                : -28 * Math.exp(-elapsed / 65) * Math.cos(elapsed / 32);
+            const deflection = pointerDeflection(elapsed, props.reduced);
             pointer.style.transform = `translateX(-50%) rotate(${deflection}deg)`;
             if (t < 1) raf = requestAnimationFrame(tick);
             else {
