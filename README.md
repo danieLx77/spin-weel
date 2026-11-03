@@ -91,3 +91,9 @@ Depois do primeiro acesso online e da preparação do cache, as roletas abrem e 
 - O pré-cache guarda uma única cópia do HTML, os imports estáticos essenciais, CSS, manifesto e ícone de 192 px. QR, diagnóstico e ícones adicionais usam cache sob demanda. Uma função aberta antes de o worker assumir a página também é preparada para offline após a instalação. Módulos opcionais com o mesmo hash podem ser preservados ao atualizar; conteúdo de outros aplicativos não é removido.
 - Em Configurações → Desempenho, o usuário pode ativar o registro local de até 30 visitas e exportar JSON. A biblioteca `web-vitals` é carregada apenas com o registro ativado. FCP, LCP, CLS, TTFB e INP são guardados quando disponíveis, sem nomes de opções, URLs ou envio externo. INP exige interações e os valores locais não são o p75 da audiência.
 - Desativar interrompe a gravação; os observadores já carregados são liberados ao sair/recarregar. Nas próximas visitas, o módulo não é carregado. O diagnóstico pode ficar incompleto em abas abertas em segundo plano ou navegadores sem suporte.
+
+## Gerar equipes
+
+No editor de opções, abra “Gerar equipes” e escolha a quantidade de equipes ou o máximo de pessoas por equipe. A distribuição embaralha as participações com a mesma fonte criptográfica dos sorteios e equilibra os tamanhos, com diferença de no máximo uma pessoa. No modo de pessoas por equipe, o limite é respeitado e os participantes restantes são distribuídos entre as equipes.
+
+Todas as opções ativas participam, inclusive as já sorteadas na rodada; nomes iguais continuam sendo participações distintas. Busca e filtros do editor não limitam a geração. A ação não altera as opções, o histórico nem a rodada. É possível copiar as equipes ou exportar CSV. O resultado é uma cópia dos nomes no momento da geração e fica disponível até trocar de roleta ou recarregar; exporte antes de sair.

@@ -33,7 +33,7 @@ export function resultsText(name, results) {
   return `${name}\n${results.map((r, i) => `${i + 1}. ${r.label}`).join("\n")}`;
 }
 // Quoting alone does not stop spreadsheet formula execution.
-const csvCell = (value) => {
+export const csvCell = (value) => {
   const text = String(value);
   const safe =
     /^[\s\uFEFF]*[=+\-@]/u.test(text) || /^[\t\r\n]/u.test(text)

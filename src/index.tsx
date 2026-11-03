@@ -31,6 +31,7 @@ import {
 } from "./extras.mjs";
 import { drawSequence } from "./results.mjs";
 import { ResultsActions, type SavedResult } from "./ResultsActions";
+import { TeamsPanel } from "./TeamsPanel";
 import { QrShare } from "./QrShare";
 import { reorderOptions, restoreOrder } from "./list-order.mjs";
 import { SettingsPanel } from "./SettingsPanel";
@@ -1487,6 +1488,7 @@ function App() {
                                   OPÇÕES DA ROLETA
                                 </label>
                               </div>
+                              <TeamsPanel wheelId={w().id} name={w().name} options={w().options} busy={spinning()} />
                               <input
                                 class="search-options"
                                 aria-label="Buscar opções"

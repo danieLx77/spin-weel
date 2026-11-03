@@ -2395,3 +2395,37 @@ summary:focus-visible {
     width: min(89%, 64dvh);
   }
 }
+
+.teams-panel {
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e4e4e7;
+  padding-bottom: 12px;
+}
+.teams-panel > summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 0;
+}
+.teams-content {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+}
+.teams-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.teams-fields select, .teams-fields input { width: 100%; min-width: 0; }
+.teams-result { min-width: 0; display: grid; gap: 12px; }
+.teams-result p { font-size: 13px; }
+.team-group { border-top: 1px solid #e4e4e7; padding-top: 12px; }
+.team-group h3 { font-size: 14px; font-weight: 600; }
+.team-group h3 span { font-weight: 400; }
+.team-group ul { padding-left: 20px; margin-top: 8px; }
+.team-group li { font-size: 14px; overflow-wrap: anywhere; padding: 2px 0; }
+@media (max-width: 600px) {
+  .teams-fields { grid-template-columns: minmax(0, 1fr); }
+  .teams-panel > summary { min-height: 44px; }
+}
