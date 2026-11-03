@@ -1,3 +1,8 @@
+import { weightedIndex, optionWeight, chanceText } from "./weighted.mjs";
+import { archiveBudget, MAX_DRAW_RESULTS, MAX_DRAW_PARTICIPANTS } from "./draw-sessions.mjs";
+import { DrawSessionsPanel, type DrawSession } from "./DrawSessionsPanel";
+import { TemplatePicker } from "./TemplatePicker";
+import { PresentationSettings, readPresentation, presentationThemes } from "./PresentationSettings";
 import { restoreDiagnostics } from "./performance-loader";
 import { optionPage, EDITOR_PAGE_SIZE } from "./render-state.mjs";
 import { render } from "solid-js/web";
@@ -14,7 +19,6 @@ import {
 import {
   optionColors,
   renewOptionColors,
-  randomIndex,
   MAX_BACKUP_BYTES,
   MAX_TOTAL_OPTIONS,
   totalOptions,
@@ -57,6 +61,7 @@ type Option = {
   id: string;
   label: string;
   color: string;
+  weight?: number;
   drawn?: boolean;
   disabled?: boolean;
 };
@@ -66,6 +71,7 @@ type Wheel = {
   options: Option[];
   history: { label: string; date: string }[];
   noRepeat?: boolean;
+  drawSessions?: DrawSession[];
 };
 const uid = () => crypto.randomUUID();
 const makeWheel = (name: string, labels: string[]): Wheel => {
@@ -108,6 +114,13 @@ function App() {
   try {
     preferences = readSettings(localStorage.getItem("volta:settings"));
   } catch {}
+  let initialPresentation = readPresentation(null);
+  try { initialPresentation = readPresentation(localStorage.getItem("volta:presentation")); } catch {}
+  const [presentationStyle, setPresentationStyle] = createSignal(initialPresentation);
+  createEffect(() => {
+    try { localStorage.setItem("volta:presentation", JSON.stringify(presentationStyle())); } catch {}
+  });
+  const presentationTheme = () => presentationThemes.find((t) => t.id === presentationStyle().theme) || presentationThemes[0];
   const [duration, setDuration] = createSignal(preferences.duration);
   const [volume, setVolume] = createSignal(preferences.volume);
   const [mystery, setMystery] = createSignal(preferences.mystery);
@@ -276,24 +289,51 @@ function App() {
       setMultiResults((old) => ({ ...old, [id]: "" }));
     }
   };
-  const recordResult = (
-    id: string,
-    selected: Option,
-    date = new Date().toISOString(),
-  ) =>
-    setWheels((all) =>
-      all.map((w) =>
-        w.id === id
-          ? {
-              ...markDrawn(w, selected.id),
-              history: [{ label: selected.label, date }, ...w.history].slice(
-                0,
-                20,
-              ),
-            }
-          : w,
-      ),
-    );
+  const participantSnapshot = (w: Wheel) => activeOptions(w).map((p: Option) => ({ id: p.id, label: p.label.trim() || "Sem nome", weight: optionWeight(p) }));
+  const sameParticipants = (a: DrawSession["participants"], b: DrawSession["participants"]) => a.length === b.length && a.every((p, i) => p.label === b[i].label && p.weight === b[i].weight);
+  const prepareSession = (w: Wheel, count = 1, force = false, name = "") => {
+    const participants = participantSnapshot(w);
+    if (!participants.length) { notify("Ative pelo menos uma opção para iniciar uma sessão."); return false; }
+    const previous = w.drawSessions?.at(-1);
+    const reuse = !force && previous && !previous.endedAt && sameParticipants(previous.participants, participants);
+    const budget = archiveBudget(wheels());
+    if (budget.results + count + runningIds().length > MAX_DRAW_RESULTS || budget.participants + (reuse ? 0 : participants.length) > MAX_DRAW_PARTICIPANTS) {
+      notify("O arquivo de sessões atingiu o limite. Exporte e exclua sessões antigas antes de continuar."); return false;
+    }
+    if (reuse) return true;
+    if ((w.drawSessions?.length || 0) >= 20) { notify("Limite de 20 sessões nesta roleta. Exporte e exclua uma sessão antiga."); return false; }
+    const date = new Date().toISOString();
+    const session: DrawSession = { id: uid(), name: name.trim().slice(0, 80) || `Sorteio ${new Date().toLocaleString("pt-BR")}`, startedAt: date, endedAt: null, participants, results: [] };
+    setWheels((all) => all.map((wheel) => wheel.id === w.id ? { ...wheel, drawSessions: [...(wheel.drawSessions || []).map((s) => s.endedAt ? s : { ...s, endedAt: date }), session] } : wheel));
+    return true;
+  };
+  const endSession = (id: string) => {
+    if (spinning()) return;
+    setWheels((all) => all.map((w) => w.id === id ? { ...w, drawSessions: w.drawSessions?.map((s) => s.endedAt ? s : { ...s, endedAt: new Date().toISOString() }) } : w));
+  };
+  const deleteDrawSession = (wheelId: string, id: string) => {
+    if (spinning()) return;
+    const session = wheels().find((w) => w.id === wheelId)?.drawSessions?.find((s) => s.id === id);
+    if (!session) return;
+    setWheels((all) => all.map((w) => w.id === wheelId ? { ...w, drawSessions: w.drawSessions?.filter((s) => s.id !== id) } : w));
+    rememberAction({ label: "Sessão excluída", restore: () => {
+      const w = wheels().find((w) => w.id === wheelId);
+      const budget = archiveBudget(wheels());
+      if (!w || (w.drawSessions?.length || 0) >= 20 || budget.results + session.results.length > MAX_DRAW_RESULTS || budget.participants + session.participants.length > MAX_DRAW_PARTICIPANTS) { notify("Não há espaço para restaurar a sessão."); return false; }
+      setWheels((all) => all.map((w) => w.id === wheelId ? { ...w, drawSessions: [...(w.drawSessions || []), { ...session, endedAt: session.endedAt || new Date().toISOString() }].sort((a,b) => a.startedAt.localeCompare(b.startedAt)) } : w));
+      return true;
+    } });
+  };
+  const recordResult = (id: string, selected: Option, date = new Date().toISOString()) => {
+    setWheels((all) => all.map((w) => {
+      if (w.id !== id) return w;
+      const index = activeOptions(w).findIndex((p: Option) => p.id === selected.id);
+      return { ...markDrawn(w, selected.id),
+        history: [{ label: selected.label, date }, ...w.history].slice(0, 20),
+        drawSessions: w.drawSessions?.map((s, i) => i === w.drawSessions!.length - 1 && !s.endedAt ? { ...s, results: [...s.results, { id: s.participants[index].id, label: selected.label.trim() || "Sem nome", date }] } : s),
+      };
+    }));
+  };
   const removeOption = (wheelId: string, optionId: string) => {
     if (spinning()) return;
     const w = wheels().find((w) => w.id === wheelId),
@@ -352,7 +392,8 @@ function App() {
       controller = controllers.get(id);
     if (!w || !canSpin(w) || !controller || runningIds().includes(id)) return;
     const eligible = availableOptions(w);
-    const selected = eligible[randomIndex(eligible.length)];
+    if (!prepareSession(w)) return;
+    const selected = eligible[weightedIndex(eligible)];
     setRunningIds((ids) => [...ids, id]);
     setSpinning(true);
     setMultiResults((old) => ({ ...old, [id]: "" }));
@@ -551,7 +592,8 @@ function App() {
     const w = active();
     if (!w || !canSpin(w) || spinning() || !singleWheel) return;
     const eligible = availableOptions(w);
-    const index = randomIndex(eligible.length),
+    if (!prepareSession(w)) return;
+    const index = weightedIndex(eligible),
       selected = eligible[index];
     setWinner(undefined);
     setSpinning(true);
@@ -574,6 +616,7 @@ function App() {
       notify("Escolha uma quantidade válida de vencedores.");
       return;
     }
+    if (!prepareSession(w, count)) return;
     setWinner(undefined);
     setBatchSummary(false);
     setBatchResults([]);
@@ -660,6 +703,14 @@ function App() {
       }
     }
   };
+  const createFromTemplate = (name: string, labels: string[]) => {
+    if (spinning()) return;
+    if (wheels().length >= 100 || totalOptions(wheels()) + labels.length > MAX_TOTAL_OPTIONS) { notify("Limite de roletas ou opções atingido."); return; }
+    const w = makeWheel(name, labels);
+    setWheels((all) => [...all, w]);
+    select(w.id);
+    notify("Modelo adicionado. Edite as opções para personalizar.");
+  };
   const create = () => {
     if (spinning()) return;
     if (totalOptions(wheels()) + 4 > MAX_TOTAL_OPTIONS) {
@@ -696,7 +747,9 @@ function App() {
       restore: () => {
         if (
           wheels().length >= 100 ||
-          totalOptions(wheels()) + removed.options.length > MAX_TOTAL_OPTIONS
+          totalOptions(wheels()) + removed.options.length > MAX_TOTAL_OPTIONS ||
+          archiveBudget([...wheels(), removed]).results > MAX_DRAW_RESULTS ||
+          archiveBudget([...wheels(), removed]).participants > MAX_DRAW_PARTICIPANTS
         ) {
           notify("Limite de roletas ou opções atingido.");
           return false;
@@ -758,6 +811,8 @@ function App() {
         throw Error("O conjunto deve ter até 5.000 opções.");
       if (wheels().length + loaded.length > 100)
         throw Error("O total deve ser de até 100 roletas.");
+      const combinedBudget = archiveBudget([...wheels(), ...loaded]);
+      if (combinedBudget.results > MAX_DRAW_RESULTS || combinedBudget.participants > MAX_DRAW_PARTICIPANTS) throw Error("As sessões importadas excedem os limites de histórico do conjunto.");
       if (spinning()) throw Error("Espere o giro terminar para importar.");
       setWheels([...wheels(), ...loaded]);
       setSessions((all) => [...all, ...(workspace.sessions as Session[])]);
@@ -958,7 +1013,7 @@ function App() {
     return new Set(labels).size < labels.length;
   };
   return (
-    <div class="app-shell" classList={{ presentation: presentation() }}>
+    <div class="app-shell" classList={{ presentation: presentation() }} style={{ "--presentation-bg": presentationTheme().background, "--presentation-text": presentationTheme().text }}>
       <aside class="sidebar">
         <a class="brand" href="./" aria-label="Volta, início">
           <span class="brand-icon">
@@ -1085,6 +1140,7 @@ function App() {
               volume={volume()}
               mystery={mystery()}
               onMystery={setMystery}
+              presentationSettings={<PresentationSettings value={presentationStyle()} onChange={setPresentationStyle} busy={spinning()} />}
               busy={spinning()}
               updateBlocked={saveError() || storageBlocked()}
               canShare={mode() === "single" && Boolean(active())}
@@ -1153,6 +1209,8 @@ function App() {
             </button>
           </div>
         </div>
+        <Show when={presentation() && presentationStyle().title.trim()}><h1 class="presentation-event-title">{presentationStyle().title}</h1></Show>
+        <TemplatePicker busy={spinning()} onCreate={createFromTemplate} />
         <Show
           when={mode() === "multi"}
           fallback={
@@ -1387,6 +1445,7 @@ function App() {
                             when={tab() === "options"}
                             fallback={
                               <div class="history-panel">
+                                <DrawSessionsPanel wheelId={w().id} sessions={w().drawSessions || []} busy={spinning()} onStart={(name) => prepareSession(w(), 0, true, name)} onEnd={() => endSession(w().id)} onDelete={(id) => deleteDrawSession(w().id, id)} />
                                 <h3>Histórico</h3>
                                 <ResultsActions
                                   name={w().name}
@@ -1488,6 +1547,7 @@ function App() {
                                   OPÇÕES DA ROLETA
                                 </label>
                               </div>
+                              <p class="muted weight-help">Pesos de 1 a 1.000: peso 2 tem o dobro da chance de peso 1. As chances consideram apenas as opções elegíveis para o próximo giro.</p>
                               <TeamsPanel wheelId={w().id} name={w().name} options={w().options} busy={spinning()} />
                               <input
                                 class="search-options"
@@ -1715,6 +1775,14 @@ function App() {
                                                 }));
                                             }}
                                           />
+                                          <label class="option-weight">Peso
+                                            <input type="number" min="1" max="1000" step="1" value={o().weight ?? 1} aria-label={`Peso de ${o().label}`} onChange={(e) => {
+                                              const weight = Number(e.currentTarget.value);
+                                              if (!Number.isSafeInteger(weight) || weight < 1 || weight > 1000) { e.currentTarget.value = String(o().weight ?? 1); notify("Use um peso inteiro entre 1 e 1.000."); return; }
+                                              update((x) => ({ ...x, options: x.options.map((p) => p.id === o().id ? { ...p, weight } : p) }));
+                                            }} />
+                                            <span>{chanceText(o(), w(), availableOptions(w()))}</span>
+                                          </label>
                                           <button
                                             class="toggle-option"
                                             aria-pressed={!o().disabled}
@@ -2030,7 +2098,7 @@ function App() {
                     <div class="multi-result" role="status">
                       <Show when={multiResults()[id]}>
                         <small>Resultado</small>
-                        <strong>{multiResults()[id]}</strong>
+                        <strong>{presentation() && presentationStyle().message.trim() ? `${presentationStyle().message} · ${multiResults()[id]}` : multiResults()[id]}</strong>
                       </Show>
                     </div>
                     <div class="spin-controls">
@@ -2169,6 +2237,7 @@ function App() {
           <p class="muted">
             {active()?.name} · {batchResults().length} de {batchTarget()}
           </p>
+          <Show when={presentation() && presentationStyle().message.trim()}><p>{presentationStyle().message}</p></Show>
           <ol class="batch-winners">
             <For each={batchResults()}>
               {(result) => <li>{result.label}</li>}
@@ -2200,7 +2269,7 @@ function App() {
               aria-labelledby="result-title"
               onKeyDown={trapResult}
             >
-              <p>Resultado</p>
+              <p>{presentation() && presentationStyle().message.trim() ? presentationStyle().message : "Resultado"}</p>
               <h2 id="result-title" aria-live="assertive">
                 {result().label}
               </h2>

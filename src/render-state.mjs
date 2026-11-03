@@ -7,7 +7,8 @@ export function sameWheelAppearance(previous, next) {
       (item, i) =>
         item.id === next[i].id &&
         item.label === next[i].label &&
-        item.color === next[i].color,
+        item.color === next[i].color &&
+        (item.weight ?? 1) === (next[i].weight ?? 1),
     ),
   );
 }

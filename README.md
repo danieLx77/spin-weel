@@ -17,7 +17,7 @@ npm run build
 npm run preview
 ```
 
-A pasta `dist` pode ser hospedada em qualquer servidor estático com HTTPS. `crypto.getRandomValues()` escolhe o campo usando amostragem por rejeição, sem viés de módulo. Cada campo tem probabilidade `1/n`; nomes duplicados contam como participações distintas. A animação termina no centro do campo previamente sorteado. O Canvas é desenhado apenas quando as opções mudam; durante o giro, requestAnimationFrame atualiza somente a rotação e a inclinação do ponteiro, sem renderizações reativas por quadro.
+A pasta `dist` pode ser hospedada em qualquer servidor estático com HTTPS. `crypto.getRandomValues()` escolhe o campo usando amostragem por rejeição, sem viés de módulo. Com pesos iguais, cada campo tem probabilidade `1/n`; com pesos diferentes, a chance é proporcional ao peso. Nomes duplicados contam como participações distintas. A animação termina no centro do campo previamente sorteado. O Canvas é desenhado apenas quando as opções mudam; durante o giro, requestAnimationFrame atualiza somente a rotação e a inclinação do ponteiro, sem renderizações reativas por quadro.
 
 ## Recursos
 
@@ -97,3 +97,15 @@ Depois do primeiro acesso online e da preparação do cache, as roletas abrem e 
 No editor de opções, abra “Gerar equipes” e escolha a quantidade de equipes ou o máximo de pessoas por equipe. A distribuição embaralha as participações com a mesma fonte criptográfica dos sorteios e equilibra os tamanhos, com diferença de no máximo uma pessoa. No modo de pessoas por equipe, o limite é respeitado e os participantes restantes são distribuídos entre as equipes.
 
 Todas as opções ativas participam, inclusive as já sorteadas na rodada; nomes iguais continuam sendo participações distintas. Busca e filtros do editor não limitam a geração. A ação não altera as opções, o histórico nem a rodada. É possível copiar as equipes ou exportar CSV. O resultado é uma cópia dos nomes no momento da geração e fica disponível até trocar de roleta ou recarregar; exporte antes de sair.
+
+## Pesos, modelos e apresentação personalizada
+
+- Cada opção aceita peso inteiro de 1 a 1.000, com padrão 1. A chance é seu peso dividido pela soma dos pesos elegíveis; o editor mostra a porcentagem e os setores da roda têm tamanhos proporcionais. Nomes iguais continuam sendo participações distintas. Pesos são respeitados em giros individuais, simultâneos e sequências sem repetição, além de backups e links. A geração de equipes continua distribuindo cada participação ativa uma única vez, independentemente do peso.
+- “Modelos prontos de roleta” oferece seis listas com prévia: participantes, tarefas da casa, perguntas, desafios, pausas e refeições. Usar um modelo adiciona uma roleta editável e preserva as existentes.
+- Configurações → Personalizar apresentação permite definir título do evento (80 caracteres), mensagem do resultado (120 caracteres) e fundo neutro, areia, céu ou menta. As preferências ficam neste navegador; não acompanham os backups nem links. O título e o tema aparecem no modo apresentação; a mensagem também aparece nos resultados individuais, simultâneos e no resumo de sequências nesse modo.
+
+## Histórico por sessão de sorteio
+
+Na aba Histórico, “Sessões de sorteio” permite iniciar uma sessão com nome, encerrá-la e consultar participantes, pesos, datas e todos os resultados em ordem de sorteio. O primeiro giro inicia uma sessão automaticamente. Alterar os participantes ativos, sua ordem, nomes ou pesos inicia outra sessão no próximo giro. O histórico recente de 20 resultados continua independente; limpá-lo não apaga as sessões.
+
+Cada roleta mantém até 20 sessões. O conjunto admite até 5.000 resultados e 10.000 participações arquivadas; ao alcançar o limite, os próximos giros são bloqueados até exportar e excluir sessões antigas. Sequências reservam espaço para todos os vencedores solicitados. Giros interrompidos não geram resultados. As sessões são salvas automaticamente e acompanham os backups JSON, inclusive após excluir participantes da lista; links compartilhados não incluem sessões. Os resultados de cada sessão podem ser copiados ou exportados em CSV. A exclusão de sessão pode ser desfeita durante a sessão de uso, respeitando os limites do conjunto.

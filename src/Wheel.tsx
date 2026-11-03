@@ -1,10 +1,11 @@
+import { sectorLayout, weightedRotation, pinBoundary } from "./weighted.mjs";
 import { sameWheelAppearance } from "./render-state.mjs";
 import { prepareWheelSound, playWheelClick } from "./sound";
 import { createEffect, onCleanup, onMount } from "solid-js";
-import { spinProgress, targetRotation, labelColor } from "./logic.mjs";
+import { spinProgress, labelColor } from "./logic.mjs";
 import { createSpinClock } from "./spin-clock.mjs";
 import { pointerDeflection } from "./pointer-motion.mjs";
-export type WheelOption = { id: string; label: string; color: string };
+export type WheelOption = { id: string; label: string; color: string; weight?: number };
 export type WheelHandle = { spin: (index: number) => Promise<boolean> };
 export function Wheel(props: {
   options: WheelOption[];
@@ -50,9 +51,10 @@ export function Wheel(props: {
     ctx.beginPath();
     ctx.arc(500, 500, 469, 0, Math.PI * 2);
     ctx.fill();
-    const slice = (Math.PI * 2) / Math.max(1, options.length);
+    const sectors = sectorLayout(options);
     options.forEach((o, i) => {
-      const start = -Math.PI / 2 + i * slice;
+      const start = -Math.PI / 2 + sectors[i].start * Math.PI * 2;
+      const slice = (sectors[i].end - sectors[i].start) * Math.PI * 2;
       ctx.beginPath();
       ctx.moveTo(500, 500);
       ctx.arc(500, 500, 468, start, start + slice);
@@ -62,7 +64,7 @@ export function Wheel(props: {
       ctx.strokeStyle = "#ffffffa0";
       ctx.lineWidth = 2;
       ctx.stroke();
-      if (options.length <= 60) {
+      if (options.length <= 60 && slice >= 0.045) {
         ctx.save();
         ctx.translate(500, 500);
         ctx.rotate(start + slice / 2);
@@ -84,7 +86,7 @@ export function Wheel(props: {
       }
     });
     options.forEach((_, i) => {
-      const a = -Math.PI / 2 + i * slice;
+      const a = -Math.PI / 2 + sectors[i].start * Math.PI * 2;
       const x = 500 + Math.cos(a) * 481,
         y = 500 + Math.sin(a) * 481;
       ctx.beginPath();
@@ -107,12 +109,12 @@ export function Wheel(props: {
         prepareWheelSound();
         busy = true;
         const from = angle,
-          to = targetRotation(from, index, props.options.length);
+          to = weightedRotation(from, index, props.options);
         // This animation is explicitly requested by the spin button. Reduced
         // motion softens the pointer response, not the spin itself.
         const progress = createSpinClock(props.duration);
-        const slice = 360 / props.options.length;
-        let previousBoundary = Math.floor(from / slice),
+        const sectors = sectorLayout(props.options);
+        let previousBoundary = pinBoundary(from, sectors),
           lastHit = -1000;
         frame.classList.add("is-spinning");
         return new Promise<boolean>((resolve) => {
@@ -121,7 +123,7 @@ export function Wheel(props: {
             const t = progress(now);
             angle = from + (to - from) * spinProgress(t);
             canvas.style.transform = `rotate(${angle}deg)`;
-            const boundary = Math.floor((angle + 1e-7) / slice);
+            const boundary = pinBoundary(angle, sectors);
             if (boundary !== previousBoundary && t < 1) {
               playWheelClick();
               lastHit = now;

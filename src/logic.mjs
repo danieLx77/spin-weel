@@ -1,3 +1,4 @@
+import { validateDrawSessions, archiveBudget, MAX_DRAW_RESULTS, MAX_DRAW_PARTICIPANTS } from "./draw-sessions.mjs";
 export const palette = [
   "#7c3aed",
   "#f97316",
@@ -121,16 +122,18 @@ export function validateWheels(data) {
         "Histórico inválido: limite de 20 resultados por roleta.",
       );
     for (const o of w.options)
-      if (!isRecord(o) || !validText(o.label, 100))
-        throw new Error("Cada opção deve ter de 1 a 100 caracteres.");
+      if (!isRecord(o) || !validText(o.label, 100) || (o.weight !== undefined && (!Number.isSafeInteger(o.weight) || o.weight < 1 || o.weight > 1000)))
+        throw new Error("Cada opção deve ter de 1 a 100 caracteres e peso inteiro de 1 a 1.000.");
   }
-  return data.map((w) => ({
+  const validated = data.map((w) => ({
     id: crypto.randomUUID(),
     name: w.name.trim(),
     noRepeat: w.noRepeat === true,
+    drawSessions: validateDrawSessions(w.drawSessions),
     options: w.options.map((o, i) => ({
       id: crypto.randomUUID(),
       label: o.label.trim(),
+      weight: o.weight ?? 1,
       drawn: o.drawn === true,
       disabled: o.disabled === true,
       color:
@@ -152,6 +155,9 @@ export function validateWheels(data) {
         date: new Date(h.date).toISOString(),
       })),
   }));
+  const budget = archiveBudget(validated);
+  if (budget.results > MAX_DRAW_RESULTS || budget.participants > MAX_DRAW_PARTICIPANTS) throw Error("Histórico de sessões excede os limites do conjunto.");
+  return validated;
 }
 
 export function targetRotation(currentRotation, index, count) {

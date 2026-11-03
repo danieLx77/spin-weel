@@ -4,10 +4,12 @@ import {
   onMount,
   onCleanup,
   type Component,
+  type JSX,
 } from "solid-js";
 import { OfflineControls } from "./OfflineControls";
 import { ActionIcon } from "./Icons";
 export function SettingsPanel(props: {
+  presentationSettings: JSX.Element;
   duration: number;
   volume: number;
   mystery: boolean;
@@ -117,6 +119,7 @@ export function SettingsPanel(props: {
           </button>
         </div>
         <div class="settings-body">
+          {props.presentationSettings}
           <label class="setting-field">
             Duração do giro
             <select

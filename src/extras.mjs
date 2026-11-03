@@ -87,6 +87,7 @@ export function createShareLink(wheel, href) {
         options: wheel.options.map((o) => ({
           label: o.label,
           color: o.color,
+          weight: o.weight ?? 1,
           disabled: o.disabled === true,
         })),
         history: [],

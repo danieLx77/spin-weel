@@ -1,4 +1,4 @@
-import { randomIndex } from "./logic.mjs";
+import { weightedIndex } from "./weighted.mjs";
 import { availableOptions } from "./round.mjs";
 
 // Draw on completion of each animation; interrupted spins never become results.
@@ -17,7 +17,7 @@ export async function drawSequence({
     );
   const results = [];
   for (let i = 0; i < count && !shouldStop(); i++) {
-    const index = randomIndex(pool.length);
+    const index = weightedIndex(pool);
     const selected = pool[index];
     if (!(await spin([...pool], index))) break;
     const result = { ...selected, date: new Date().toISOString() };
