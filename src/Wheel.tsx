@@ -3,7 +3,7 @@ import { sameWheelAppearance } from "./render-state.mjs";
 import { prepareWheelSound, playWheelClick } from "./sound";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { spinProgress, labelColor } from "./logic.mjs";
-import { createSpinClock } from "./spin-clock.mjs";
+import { runSpin } from "./spin-clock.mjs";
 import { pointerDeflection } from "./pointer-motion.mjs";
 export type WheelOption = { id: string; label: string; color: string; weight?: number };
 export type WheelHandle = { spin: (index: number) => Promise<boolean> };
@@ -21,11 +21,11 @@ export function Wheel(props: {
   let pointer!: HTMLDivElement;
   let frame!: HTMLDivElement;
   let angle = 0,
-    raf = 0,
     busy = false;
   let previousMystery: boolean | undefined;
   let previousOptions: WheelOption[] | undefined;
   let finish: ((completed: boolean) => void) | undefined;
+  let cancelSpin: (() => void) | undefined;
   createEffect(() => {
     const options = props.options;
     const mystery = props.mystery;
@@ -112,44 +112,52 @@ export function Wheel(props: {
           to = weightedRotation(from, index, props.options);
         // This animation is explicitly requested by the spin button. Reduced
         // motion softens the pointer response, not the spin itself.
-        const progress = createSpinClock(props.duration);
         const sectors = sectorLayout(props.options);
         let previousBoundary = pinBoundary(from, sectors),
           lastHit = -1000;
         frame.classList.add("is-spinning");
         return new Promise<boolean>((resolve) => {
           finish = resolve;
-          const tick = (now: number) => {
-            const t = progress(now);
-            angle = from + (to - from) * spinProgress(t);
-            canvas.style.transform = `rotate(${angle}deg)`;
-            const boundary = pinBoundary(angle, sectors);
-            if (boundary !== previousBoundary && t < 1) {
-              playWheelClick();
-              lastHit = now;
-              previousBoundary = boundary;
-            }
-            const elapsed = now - lastHit;
-            const deflection = pointerDeflection(elapsed, props.reduced);
-            pointer.style.transform = `translateX(-50%) rotate(${deflection}deg)`;
-            if (t < 1) raf = requestAnimationFrame(tick);
-            else {
+          cancelSpin = runSpin({
+            duration: props.duration,
+            subscribeWake: (wake: () => void) => {
+              document.addEventListener("visibilitychange", wake);
+              window.addEventListener("pageshow", wake);
+              return () => {
+                document.removeEventListener("visibilitychange", wake);
+                window.removeEventListener("pageshow", wake);
+              };
+            },
+            onFrame: (t: number, now: number) => {
+              angle = from + (to - from) * spinProgress(t);
+              canvas.style.transform = `rotate(${angle}deg)`;
+              const boundary = pinBoundary(angle, sectors);
+              if (boundary !== previousBoundary && t < 1) {
+                playWheelClick();
+                lastHit = now;
+                previousBoundary = boundary;
+              }
+              const elapsed = now - lastHit;
+              const deflection = pointerDeflection(elapsed, props.reduced);
+              pointer.style.transform = `translateX(-50%) rotate(${deflection}deg)`;
+            },
+            onComplete: () => {
               angle = to % 360;
               canvas.style.transform = `rotate(${angle}deg)`;
               pointer.style.transform = "translateX(-50%) rotate(0deg)";
               frame.classList.remove("is-spinning");
               busy = false;
               finish = undefined;
+              cancelSpin = undefined;
               resolve(true);
-            }
-          };
-          raf = requestAnimationFrame(tick);
+            },
+          });
         });
       },
     }),
   );
   onCleanup(() => {
-    cancelAnimationFrame(raf);
+    cancelSpin?.();
     finish?.(false);
   });
   return (

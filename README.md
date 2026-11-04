@@ -55,8 +55,6 @@ Modo surpresa oculta os nomes na roda e revela os resultados. É um efeito visua
 
 Links compartilham uma cópia da roleta pelo fragmento do endereço, sem servidor, histórico ou sessões. O link respeita as chances do modo atual: opções com chances iguais em “Uma roleta”, pesos preservados em “Roleta com pesos”. Quem recebe vê uma prévia antes de adicionar. Listas compartilhadas com pesos diferentes de 1 abrem no modo com pesos. Opções desativadas continuam desativadas. O link não é criptografado e tem limite de 8.000 caracteres.
 
-O QR Code usa o mesmo link, gerado localmente, com opção de baixar a imagem PNG ou copiar o endereço. Seu limite é de 1.400 caracteres para manter a leitura. O gerador QR é carregado ao abrir esse controle e preparado para offline após o primeiro uso online.
-
 ## Histórico por sessão de sorteio
 
 Na aba Histórico, “Sessões de sorteio” guarda participantes, pesos efetivamente usados, datas e resultados em ordem de sorteio. O primeiro giro inicia uma sessão automaticamente; é possível iniciar outra com nome ou encerrá-la. Alterar os participantes, sua ordem, nomes ou pesos efetivos inicia outra sessão no próximo giro.
@@ -67,11 +65,11 @@ No modo simultâneo, até 20 combinações de listas podem ser salvas para reuti
 
 ## Instalação, offline e desempenho
 
-O build gera manifesto, ícones e service worker. A instalação depende do navegador; no Safari, use Compartilhar → Adicionar à Tela de Início. Após o primeiro acesso online e a preparação do cache, o app funciona offline. Módulos opcionais, como QR e diagnóstico, ficam disponíveis offline após o primeiro uso online. A disponibilidade depende de o navegador preservar seu cache.
+O build gera manifesto, ícones e service worker. A instalação depende do navegador; no Safari, use Compartilhar → Adicionar à Tela de Início. Após o primeiro acesso online e a preparação do cache, o app funciona offline. O diagnóstico opcional fica disponível offline após o primeiro uso online. A disponibilidade depende de o navegador preservar seu cache.
 
 Atualizações ficam pendentes até “Atualizar aplicativo”; giros e recuperação de dados bloqueiam a atualização. O worker controla apenas o próprio subcaminho e remove somente os caches do Volta nesse escopo.
 
-A seleção usa `crypto.getRandomValues()` com amostragem por rejeição. A roda termina no centro do setor sorteado. O Canvas é redesenhado apenas ao alterar sua aparência; durante o giro, requestAnimationFrame atualiza a rotação e o ponteiro. A duração conta tempo de animação exibida: pausas de aba ou travamentos prolongam o giro. Movimento reduzido suaviza a reação do ponteiro, preservando a animação solicitada.
+A seleção usa `crypto.getRandomValues()` com amostragem por rejeição. A roda termina no centro do setor sorteado. O Canvas é redesenhado apenas ao alterar sua aparência; durante o giro, requestAnimationFrame atualiza a rotação e o ponteiro. A duração conta o tempo decorrido desde o início, mesmo em outra aba. Uma verificação por temporizador permite concluir o giro em segundo plano; ao voltar, a roda e o resultado são atualizados pelo mesmo relógio, sem reiniciar ou repetir o sorteio. Se o navegador suspender totalmente a página, o estado é atualizado ao retomá-la. Movimento reduzido suaviza a reação do ponteiro, preservando a animação solicitada.
 
 Listas com mais de 50 opções usam páginas de 50 linhas; busca e seleção abrangem todas as páginas. O diagnóstico opcional guarda até 30 visitas localmente, sem nomes, URLs ou envio externo. Consulte [SECURITY.md](SECURITY.md) e [a auditoria de produção](docs/PRODUCTION-AUDIT.md) para os limites de segurança e hospedagem.
 

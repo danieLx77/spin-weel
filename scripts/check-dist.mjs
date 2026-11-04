@@ -68,7 +68,7 @@ for (const asset of assets)
   );
 assert.equal(core.filter((path) => path === base).length, 1);
 assert.ok(
-  !core.some((path) => /qrcode|Diagnostics|web-vitals/.test(path)),
+  !core.some((path) => /Diagnostics|web-vitals/.test(path)),
   "Recurso opcional no pré-cache",
 );
-assert.ok(optional.some((path) => path.includes("qrcode")));
+assert.ok(optional.some((path) => path.includes("Diagnostics")));

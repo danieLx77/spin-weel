@@ -34,7 +34,6 @@ import {
 import { drawSequence } from "./results.mjs";
 import { ResultsActions, type SavedResult } from "./ResultsActions";
 import { TeamsPanel, type TeamsHandle } from "./TeamsPanel";
-import { QrShare } from "./QrShare";
 import { reorderOptions, restoreOrder } from "./list-order.mjs";
 import { SettingsPanel } from "./SettingsPanel";
 import {
@@ -1052,9 +1051,6 @@ function App() {
               onMessage={notify}
             />
             <PresentationSettings value={presentationStyle()} onChange={setPresentationStyle} busy={spinning()} />
-            <Show when={shareableWheel()}>
-              <QrShare wheel={shareableWheel()} busy={spinning()} />
-            </Show>
             <Show when={undoStack().length}>
               <button
                 class="icon-button"

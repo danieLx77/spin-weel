@@ -5,7 +5,7 @@ import { serviceWorkerSource } from "../service-worker.mjs";
 const base = "/app/",
   origin = "https://example.com",
   core = [base, base + "assets/main-abc.js", base + "assets/main-abc.css"],
-  optional = [base + "assets/qrcode-abc.js", base + "icons/icon.png"];
+  optional = [base + "assets/diagnostics-abc.js", base + "icons/icon.png"];
 function worker() {
   const stores = new Map(),
     handlers = {},
