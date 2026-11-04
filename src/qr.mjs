@@ -8,7 +8,7 @@ export async function makeQRMatrix(url) {
     throw new Error("Link inválido para o QR Code.");
   if (url.length > MAX_QR_LENGTH)
     throw new Error(
-      "Esta roleta é grande demais para um QR Code legível. Use Copiar link ou Exportar backup.",
+      "Esta roleta é grande demais para um QR Code legível. Use Copiar link.",
     );
   let qrcode;
   try {

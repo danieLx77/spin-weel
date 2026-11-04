@@ -1,3 +1,4 @@
+import { ToolbarPanel } from "./ToolbarPanel";
 import { For } from "solid-js";
 export const presentationThemes = [
   { id: "neutral", name: "Neutro", background: "#fafafa", text: "#27272a" },
@@ -17,10 +18,10 @@ export function readPresentation(raw: string | null): PresentationStyle {
   } catch { return { title: "", message: "", theme: "neutral" }; }
 }
 export function PresentationSettings(props: { value: PresentationStyle; busy: boolean; onChange: (value: PresentationStyle) => void }) {
-  return <details class="feature-panel"><summary>Personalizar apresentação</summary><div class="feature-content">
+  return <ToolbarPanel label="Personalizar apresentação" icon="presentation"><div class="feature-content">
     <label class="setting-field">Título do evento<input maxLength={80} value={props.value.title} disabled={props.busy} placeholder="Ex.: Encontro da equipe" onInput={(e) => props.onChange({ ...props.value, title: e.currentTarget.value })} /></label>
     <label class="setting-field">Mensagem do resultado<input maxLength={120} value={props.value.message} disabled={props.busy} placeholder="Ex.: Parabéns!" onInput={(e) => props.onChange({ ...props.value, message: e.currentTarget.value })} /></label>
     <label class="setting-field">Fundo da apresentação<select value={props.value.theme} disabled={props.busy} onChange={(e) => props.onChange({ ...props.value, theme: e.currentTarget.value })}><For each={presentationThemes}>{(theme) => <option value={theme.id}>{theme.name}</option>}</For></select></label>
     <p class="muted">Preferências salvas neste navegador. Entre no modo apresentação para exibir o título, o fundo e a mensagem.</p>
-  </div></details>;
+  </div></ToolbarPanel>;
 }

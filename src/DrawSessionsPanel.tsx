@@ -38,7 +38,7 @@ export function DrawSessionsPanel(props: {
           <button class="text-button" disabled={props.busy} onClick={() => props.onDelete(session.id)}>Excluir sessão</button>
         </div>
       </details>}</For>
-      <p class="muted">Salvas neste navegador e incluídas nos backups. Limite do conjunto: 5.000 resultados e 10.000 participantes arquivados. Exporte e exclua sessões antigas para liberar espaço.</p>
+      <p class="muted">Salvas automaticamente neste navegador. Limite do conjunto: 5.000 resultados e 10.000 participantes arquivados. Copie os resultados e exclua sessões antigas para liberar espaço.</p>
     </div>
   </details>;
 }

@@ -26,3 +26,30 @@ export function teamsCSV(name, teams) {
     team.map((participant) => [name, `Equipe ${index + 1}`, participant.label]))];
   return "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
+
+// Reconstruct the shuffled draw order, distributing one person per team in turn.
+export function teamAssignments(teams) {
+  const assignments = [];
+  const rounds = Math.max(0, ...teams.map((team) => team.length));
+  for (let row = 0; row < rounds; row++) {
+    teams.forEach((team, teamIndex) => {
+      if (team[row]) assignments.push({ participant: team[row], teamIndex });
+    });
+  }
+  return assignments;
+}
+
+export async function animateTeams({ options, teams, spin, onAssignment, shouldStop }) {
+  let pool = options.filter((option) => !option.disabled).map((option) => ({ ...option, weight: 1 }));
+  const completed = [];
+  for (const assignment of teamAssignments(teams)) {
+    if (shouldStop()) break;
+    const index = pool.findIndex((option) => option.id === assignment.participant.id);
+    if (index < 0) throw new Error("Participante não encontrado. Gere as equipes novamente.");
+    if (!(await spin([...pool], index))) break;
+    completed.push(assignment);
+    onAssignment(assignment);
+    pool = pool.filter((option) => option.id !== assignment.participant.id);
+  }
+  return completed;
+}

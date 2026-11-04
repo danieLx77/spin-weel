@@ -48,18 +48,6 @@ export default function PerformanceDiagnostics(props: { busy: boolean }) {
       setLoading(false);
     }
   };
-  const download = () => {
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify({ version: 1, visits: history() }, null, 2)], {
-        type: "application/json",
-      }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "volta-desempenho.json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
   const latest = () => history().at(-1);
   return (
     <div class="performance-content">
@@ -113,9 +101,6 @@ export default function PerformanceDiagnostics(props: { busy: boolean }) {
         <p class="muted">
           {history().length} visita(s) registrada(s). INP depende de interações.
         </p>
-        <button class="secondary-button" onClick={download}>
-          Exportar diagnóstico
-        </button>
       </Show>
     </div>
   );

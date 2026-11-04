@@ -41,3 +41,9 @@ Nenhuma dependência, fonte externa, imagem remota ou chamada de rede foi adicio
 ## Extensões de operação
 
 Apresentação reduz a interface à roda, controles de giro, som e rodada, com saída acessível. Não adiciona efeitos decorativos. “Sem repetição” é configurado por roleta e mostra apenas o progresso da rodada e a ação de reiniciar. Itens já sorteados permanecem no editor com texto riscado. A exclusão usa recuperação por ação, em vez de uma confirmação bloqueante, e respeita os limites de armazenamento ao restaurar.
+
+## Simplificação de novembro
+
+A navegação principal separa quatro tarefas: uma roleta, roletas simultâneas, roleta com pesos e gerar equipes. Cada tarefa reutiliza as listas existentes e mostra apenas seus próprios controles. Pesos e porcentagens ficam exclusivos do modo ponderado. Equipes oferecem resultado direto ou um giro por participante, com progresso e interrupção após o giro atual.
+
+Ações de importar/exportar JSON/CSV e o catálogo de modelos foram removidos. Cópia de texto continua disponível. A engrenagem representa configurações; a paleta abre exclusivamente a personalização da apresentação. Os dois painéis compartilham comportamento de fechamento por Escape, clique fora e reposicionamento em telas pequenas.

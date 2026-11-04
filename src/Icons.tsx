@@ -45,6 +45,9 @@ export function ActionIcon(props: {
     | "collapse"
     | "undo"
     | "settings"
+    | "presentation"
+    | "weights"
+    | "teams"
     | "eye"
     | "eyeOff"
     | "qr";
@@ -54,7 +57,10 @@ export function ActionIcon(props: {
     eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
     eyeOff:
       "m3 3 18 18M10.6 5.1 12 5c6.5 0 10 7 10 7a19 19 0 0 1-3 3.8M6.2 6.2A20 20 0 0 0 2 12s3.5 7 10 7a12 12 0 0 0 5.8-1.8M10 10a3 3 0 0 0 4 4",
-    settings: "M4 7h16M4 17h16M8 4v6m8 4v6",
+    settings: "M9.5 3h5l.6 2.3 2 .9 2.1-.7 2.5 4.3-1.7 1.6v2.2l1.7 1.6-2.5 4.3-2.1-.7-2 .9-.6 2.3h-5l-.6-2.3-2-.9-2.1.7-2.5-4.3L4 13.6v-2.2L2.3 9.8l2.5-4.3 2.1.7 2-.9.6-2.3Zm2.5 5.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z",
+    presentation: "M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 1.4-3.4 1.5 1.5 0 0 1 1.1-2.6h2a3 3 0 0 0 3-3 9 9 0 0 0-9-9ZM7 10h.01M10 6.5h.01M15 7h.01M18 11h.01",
+    weights: "M12 3v18M5 21h14M3 7h18M6 7l-4 8h8L6 7Zm12 0-4 8h8l-4-8Z",
+    teams: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6-5a3 3 0 0 1 0 6M3 20v-2a6 6 0 0 1 12 0v2m3-6a5 5 0 0 1 3 4v2",
     expand: "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5",
     collapse: "M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5",
     undo: "M9 4 4 9l5 5M4 9h10a6 6 0 0 1 0 12h-2",

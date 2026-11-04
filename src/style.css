@@ -2396,22 +2396,6 @@ summary:focus-visible {
   }
 }
 
-.teams-panel {
-  margin-bottom: 16px;
-  border-bottom: 1px solid #e4e4e7;
-  padding-bottom: 12px;
-}
-.teams-panel > summary {
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 10px 0;
-}
-.teams-content {
-  display: grid;
-  gap: 12px;
-  padding-top: 8px;
-}
 .teams-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2427,21 +2411,12 @@ summary:focus-visible {
 .team-group li { font-size: 14px; overflow-wrap: anywhere; padding: 2px 0; }
 @media (max-width: 600px) {
   .teams-fields { grid-template-columns: minmax(0, 1fr); }
-  .teams-panel > summary { min-height: 44px; }
 }
 
 .feature-panel { border-bottom: 1px solid var(--line); padding: 12px 0; }
 .feature-panel > summary, .draw-session > summary { cursor: pointer; font-weight: 600; font-size: 14px; padding: 10px 0; overflow-wrap: anywhere; }
 .feature-content { display: grid; gap: 12px; padding: 12px 0; min-width: 0; }
 .feature-content input, .feature-content select { max-width: 100%; min-width: 0; }
-.template-picker { margin-bottom: 16px; }
-.template-list { display: grid; gap: 0; padding-top: 8px; }
-.template-row { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; border-top: 1px solid var(--line); padding: 16px 0; }
-.template-row h3 { font-size: 14px; font-weight: 600; }
-.template-row p { margin: 6px 0; }
-.template-row ul, .session-participants, .session-results { padding-left: 20px; margin-top: 8px; }
-.template-row li, .session-participants li, .session-results li { overflow-wrap: anywhere; font-size: 14px; padding: 4px 0; }
-.template-row button { flex-shrink: 0; }
 .draw-session { border-top: 1px solid var(--line); min-width: 0; }
 .session-results { max-height: 340px; overflow-y: auto; }
 .session-results time { display: block; font-size: 12px; }
@@ -2449,19 +2424,15 @@ summary:focus-visible {
 .option-weight { width: 62px; flex-shrink: 0; font-size: 11px; display: grid; gap: 2px; line-height: 1.2; }
 .option-weight input { width: 100%; min-width: 0; padding: 4px; height: 30px; font-size: 13px; }
 .option-weight span { font-variant-numeric: tabular-nums; }
-.option-row { height: 84px; }
+.weighted-workspace .option-row { height: 84px; }
 .presentation { background: var(--presentation-bg); color: var(--presentation-text); min-height: 100dvh; }
-.presentation .template-picker { display: none; }
 .presentation-event-title { padding: 16px 0 8px; overflow-wrap: anywhere; text-align: center; font-size: clamp(22px, 4vw, 36px); font-weight: 600; }
 .presentation .result-modal > p { overflow-wrap: anywhere; }
 @media (max-width: 900px) {
-  .option-row { height: auto; grid-template-rows: 44px 44px auto; }
+  .weighted-workspace .option-row { height: auto; grid-template-rows: 44px 44px auto; }
   .option-row .option-weight { grid-column: 2; grid-row: 3; width: auto; grid-template-columns: auto minmax(60px, 80px) auto; align-items: center; justify-content: start; gap: 8px; padding: 6px 0; font-size: 12px; }
   .option-weight input { min-height: 44px; }
   .feature-panel > summary, .draw-session > summary { min-height: 44px; }
-}
-@media (max-width: 480px) {
-  .template-row { flex-direction: column; gap: 8px; }
 }
 .presentation:has(.presentation-event-title) .play-card:not(.multi-card) .wheel-stage {
   height: clamp(240px, calc(100dvh - 350px), 650px);
@@ -2470,4 +2441,47 @@ summary:focus-visible {
 }
 .presentation:has(.presentation-event-title) .play-card:not(.multi-card) .wheel-frame {
   width: min(max(220px, calc(100dvh - 370px)), 82%, 650px);
+}
+
+/* Four focused modes share the same saved lists. */
+.view-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.view-controls .mode-switch {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+}
+.view-controls .mode-switch button {
+  min-width: 0;
+  justify-content: center;
+  min-height: 44px;
+  white-space: normal;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.view-controls .mode-switch svg { display: block; flex-shrink: 0; }
+.view-actions { justify-self: end; flex-wrap: wrap; }
+.presentation .view-controls .mode-switch { display: none; }
+.teams-workspace { min-width: 0; }
+.teams-setup { display: grid; gap: 16px; padding: 24px; }
+.teams-setup h2 { font-size: 18px; font-weight: 600; }
+.teams-setup .teams-fields { gap: 16px; }
+.teams-setup .teams-generate { width: 100%; min-height: 44px; }
+.teams-workspace > .teams-result { padding: 24px; }
+.teams-workspace .teams-result > [role="status"] { font-size: 14px; line-height: 1.5; }
+.teams-workspace .wheel-stage { max-height: 520px; min-height: 260px; }
+.presentation .teams-setup { padding-bottom: 16px; }
+@media (max-width: 700px) {
+  .view-controls .mode-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .view-controls .mode-switch button { font-size: 12px; }
+  .view-controls .mode-switch svg { width: 16px; height: 16px; }
+  .teams-setup, .teams-workspace > .teams-result { padding: 20px; }
+}
+
+@media (max-width: 900px) {
+  .weighted-workspace .option-weight input { font-size: 16px; }
 }

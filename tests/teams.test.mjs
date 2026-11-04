@@ -41,3 +41,40 @@ test("exporta equipes com proteção de fórmulas e aspas", () => {
   assert.ok(csv.includes('"Equipe 2","João, Silva"'));
   assert.equal(teamsText("Evento", teams), 'Evento\n\nEquipe 1\n=HYPERLINK("x")\n\nEquipe 2\nJoão, Silva');
 });
+
+test("anima um giro por participante, inclusive o último, e produz as mesmas equipes", async () => {
+  const { animateTeams, teamAssignments } = await import("../src/teams.mjs");
+  const people = options.slice(0, 5).map((p) => ({ ...p, weight: 100 }));
+  const teams = generateTeams(people, "teams", 2, fill);
+  const plan = teamAssignments(teams);
+  const revealed = teams.map(() => []);
+  const lengths = [];
+  const actual = await animateTeams({
+    options: people,
+    teams,
+    shouldStop: () => false,
+    spin: async (pool, index) => {
+      lengths.push(pool.length);
+      assert.ok(pool.every((p) => p.weight === 1));
+      assert.equal(pool[index].id, plan[lengths.length - 1].participant.id);
+      return true;
+    },
+    onAssignment: ({ participant, teamIndex }) => revealed[teamIndex].push(participant),
+  });
+  assert.deepEqual(lengths, [5, 4, 3, 2, 1]);
+  assert.deepEqual(revealed, teams);
+  assert.equal(actual.length, 5);
+  assert.ok(people.every((p) => p.weight === 100));
+});
+test("parar preserva apenas os giros concluídos", async () => {
+  const { animateTeams } = await import("../src/teams.mjs");
+  const teams = generateTeams(options, "teams", 3, fill);
+  let spins = 0, revealed = 0;
+  const done = await animateTeams({ options, teams, spin: async () => { spins++; return true; }, onAssignment: () => { revealed++; }, shouldStop: () => revealed === 2 });
+  assert.equal(spins, 2);
+  assert.equal(done.length, 2);
+  let assigned = false;
+  const cancelled = await animateTeams({ options, teams, spin: async () => false, onAssignment: () => { assigned = true; }, shouldStop: () => false });
+  assert.equal(assigned, false);
+  assert.deepEqual(cancelled, []);
+});

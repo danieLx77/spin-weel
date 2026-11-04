@@ -106,7 +106,7 @@ export function createShareLink(wheel, href) {
   url.hash = `roleta=${payload}`;
   if (url.href.length > 8000)
     throw Error(
-      "Esta roleta é grande demais para um link. Use Exportar backup.",
+      "Esta lista é grande demais para um link. Reduza a quantidade de opções para compartilhar.",
     );
   return url.href;
 }

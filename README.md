@@ -1,6 +1,6 @@
 # Volta
 
-Gerenciador de roletas em SolidJS, TypeScript, Tailwind CSS e Vite. Sem conta ou servidor: as roletas ficam no armazenamento local do navegador.
+Roletas simples para decidir, sortear e formar equipes. Feito com SolidJS, TypeScript, Tailwind CSS e Vite, sem conta ou servidor. As listas e os históricos são salvos automaticamente neste navegador.
 
 ## Executar
 
@@ -14,98 +14,74 @@ npm run dev
 ```sh
 npm test
 npm run build
+npm run check:dist
 npm run preview
 ```
 
-A pasta `dist` pode ser hospedada em qualquer servidor estático com HTTPS. `crypto.getRandomValues()` escolhe o campo usando amostragem por rejeição, sem viés de módulo. Com pesos iguais, cada campo tem probabilidade `1/n`; com pesos diferentes, a chance é proporcional ao peso. Nomes duplicados contam como participações distintas. A animação termina no centro do campo previamente sorteado. O Canvas é desenhado apenas quando as opções mudam; durante o giro, requestAnimationFrame atualiza somente a rotação e a inclinação do ponteiro, sem renderizações reativas por quadro.
+## Modos
 
-## Recursos
+A navegação superior oferece quatro opções que reutilizam as listas salvas:
 
-- Criar, editar, duplicar e excluir roletas.
-- Personalizar, reordenar e adicionar opções em lote (até 500 por roleta).
-- Sorteio animado em Canvas, com giro de 9 segundos, aceleração suave, desaceleração, pinos e ponteiro com efeito de mola. A preferência por movimento reduzido mantém uma reação curta do ponteiro aos pinos, sem oscilação de mola, e preserva o giro solicitado pelo botão e sua duração configurada.
-- Modo simultâneo com até 6 roletas, giro individual ou conjunto e resultados independentes.
-- Clique ou toque no botão central da roleta para girá-la; também funciona com Enter ou Espaço ao focar o botão. O centro fica desativado durante o giro ou quando não há opções suficientes.
-- Histórico de até 20 resultados por roleta e remoção opcional do vencedor.
-- Salvamento automático, importação e exportação de backups JSON.
-- Interface responsiva e controles por teclado.
+- **Uma roleta:** todas as opções elegíveis têm a mesma chance.
+- **Roletas simultâneas:** até seis roletas com giros individuais ou em conjunto, com chances iguais por opção em cada roleta.
+- **Roleta com pesos:** cada opção aceita peso inteiro de 1 a 1.000. O editor mostra as chances e os setores da roda são proporcionais aos pesos. Peso 2 tem o dobro da chance de peso 1. Os pesos ficam guardados na lista, mas só são usados neste modo.
+- **Gerar equipes:** escolha a quantidade de equipes ou o máximo de pessoas por equipe. O resultado pode aparecer diretamente ou ser revelado com um giro por participante, incluindo o último. A distribuição é equilibrada, com diferença de no máximo uma pessoa entre equipes. “Parar após este giro” mantém as pessoas já distribuídas e identifica o resultado como incompleto.
 
-Os dados pertencem ao navegador e à origem onde o site é aberto. Limpar os dados do navegador remove as roletas; exporte backups para transferi-las ou preservá-las. Não há sincronização entre dispositivos. Backups importados são adicionados às roletas existentes.
+Equipes consideram todas as opções ativas, inclusive as já sorteadas na rodada, e ignoram os pesos. Cada participação entra uma única vez. Nomes iguais continuam sendo participações distintas. As equipes não alteram as opções, a rodada nem o histórico de giros. É possível copiar o resultado em texto; ele fica disponível até trocar de modo, de lista ou recarregar.
 
-## Segurança
+## Listas e sorteios
 
-Consulte [SECURITY.md](SECURITY.md) para a revisão, limites de importação e requisitos de hospedagem. A compilação gera uma CSP no HTML e `dist/_headers` para plataformas compatíveis. A aplicação limita o conjunto a 5.000 opções; backups têm limite de 5 MB. Dados inválidos no armazenamento não são sobrescritos automaticamente.
+- Criar, editar, duplicar e excluir listas, com até 500 opções por lista, 100 listas e 5.000 opções no conjunto.
+- Colar uma lista de nomes, buscar sem distinguir caixa ou acentos, ordenar A–Z/Z–A, embaralhar, filtrar duplicados e selecionar várias opções.
+- Ativar ou desativar participações sem excluí-las. Nomes duplicados são participações separadas.
+- Ajustar cores, renovar a paleta e reorganizar opções. A ordem visual não altera as chances.
+- Girar pelo botão central, pelo botão principal ou com Enter fora dos campos e controles.
+- Usar “Sem repetição” para retirar vencedores apenas da rodada. Reiniciar restaura as participações da rodada, sem reativar ausentes.
+- Sortear vários vencedores em sequência, sem repetir a mesma participação, nos modos de roleta individual e com pesos.
+- Copiar resultados e históricos como texto.
+- Desfazer exclusões pela barra, pelo aviso ou por Ctrl/Cmd+Z fora dos campos de edição. Até 20 ações ficam disponíveis durante o uso; recarregar ou fechar o aviso limpa essa recuperação.
+
+Não há importação ou exportação de arquivos JSON/CSV nem catálogo de modelos. As roletas já salvas continuam disponíveis. Os dados pertencem ao navegador e à origem onde o site é aberto; limpar os dados do navegador remove as listas e históricos. Não há sincronização entre dispositivos.
+
+## Configurações e apresentação
+
+A **engrenagem** abre duração do giro (4, 9 ou 14 segundos), volume, modo surpresa, compartilhamento, instalação e diagnóstico local.
+
+O ícone de **paleta**, separado da engrenagem, abre a personalização da apresentação: título do evento (80 caracteres), mensagem do resultado (120 caracteres) e fundo neutro, areia, céu ou menta. As preferências ficam neste navegador. O botão de tela cheia entra no modo apresentação, ocultando a navegação e o editor; Escape ou o botão de sair retornam ao modo normal.
+
+Modo surpresa oculta os nomes na roda e revela os resultados. É um efeito visual: editor, histórico e links continuam contendo os nomes.
+
+## Compartilhamento
+
+Links compartilham uma cópia da roleta pelo fragmento do endereço, sem servidor, histórico ou sessões. O link respeita as chances do modo atual: opções com chances iguais em “Uma roleta”, pesos preservados em “Roleta com pesos”. Quem recebe vê uma prévia antes de adicionar. Listas compartilhadas com pesos diferentes de 1 abrem no modo com pesos. Opções desativadas continuam desativadas. O link não é criptografado e tem limite de 8.000 caracteres.
+
+O QR Code usa o mesmo link, gerado localmente, com opção de baixar a imagem PNG ou copiar o endereço. Seu limite é de 1.400 caracteres para manter a leitura. O gerador QR é carregado ao abrir esse controle e preparado para offline após o primeiro uso online.
+
+## Histórico por sessão de sorteio
+
+Na aba Histórico, “Sessões de sorteio” guarda participantes, pesos efetivamente usados, datas e resultados em ordem de sorteio. O primeiro giro inicia uma sessão automaticamente; é possível iniciar outra com nome ou encerrá-la. Alterar os participantes, sua ordem, nomes ou pesos efetivos inicia outra sessão no próximo giro.
+
+O histórico recente de 20 resultados é independente das sessões. Cada roleta mantém até 20 sessões; o conjunto admite até 5.000 resultados e 10.000 participações arquivadas. Os próximos giros são bloqueados ao atingir esses limites. Copie os resultados e exclua sessões antigas para liberar espaço. Sequências reservam espaço para os vencedores solicitados e giros interrompidos não viram resultados. A exclusão de sessões pode ser desfeita durante o uso, respeitando os limites do conjunto.
+
+No modo simultâneo, até 20 combinações de listas podem ser salvas para reutilização.
+
+## Instalação, offline e desempenho
+
+O build gera manifesto, ícones e service worker. A instalação depende do navegador; no Safari, use Compartilhar → Adicionar à Tela de Início. Após o primeiro acesso online e a preparação do cache, o app funciona offline. Módulos opcionais, como QR e diagnóstico, ficam disponíveis offline após o primeiro uso online. A disponibilidade depende de o navegador preservar seu cache.
+
+Atualizações ficam pendentes até “Atualizar aplicativo”; giros e recuperação de dados bloqueiam a atualização. O worker controla apenas o próprio subcaminho e remove somente os caches do Volta nesse escopo.
+
+A seleção usa `crypto.getRandomValues()` com amostragem por rejeição. A roda termina no centro do setor sorteado. O Canvas é redesenhado apenas ao alterar sua aparência; durante o giro, requestAnimationFrame atualiza a rotação e o ponteiro. A duração conta tempo de animação exibida: pausas de aba ou travamentos prolongam o giro. Movimento reduzido suaviza a reação do ponteiro, preservando a animação solicitada.
+
+Listas com mais de 50 opções usam páginas de 50 linhas; busca e seleção abrangem todas as páginas. O diagnóstico opcional guarda até 30 visitas localmente, sem nomes, URLs ou envio externo. Consulte [SECURITY.md](SECURITY.md) e [a auditoria de produção](docs/PRODUCTION-AUDIT.md) para os limites de segurança e hospedagem.
 
 ## Publicação no GitHub Pages
 
-O workflow `.github/workflows/pages.yml` testa e publica a branch `main` em <https://danielx77.github.io/spin-weel/>. Em pull requests, executa somente a validação. O ambiente usa Node 22, dependências do lockfile e Actions oficiais fixadas por SHA.
-
-Para reproduzir o build do Pages:
+O workflow `.github/workflows/pages.yml` valida e publica `main` em <https://danielx77.github.io/spin-weel/>. Em pull requests, executa apenas a validação. Usa Node 22, dependências do lockfile e Actions oficiais fixadas por SHA.
 
 ```sh
 BASE_PATH=/spin-weel/ npm run build
 BASE_PATH=/spin-weel/ npm run check:dist
 ```
 
-Consulte [a auditoria de produção](docs/PRODUCTION-AUDIT.md) para as verificações e limitações do GitHub Pages. Roletas salvas no localhost precisam ser exportadas e importadas na versão pública.
-
-## Apresentação, rodadas e desfazer
-
-- O botão de apresentação oculta o editor e a navegação. Usa tela cheia quando disponível; o botão de sair ou Escape retorna ao modo normal. Funciona também com várias roletas.
-- “Sem repetição” retira os vencedores apenas da rodada. “Reiniciar rodada” restaura as participações ativas; as opções e seus dados continuam no editor. A rodada é salva junto com o backup, inclusive quando resta apenas uma opção elegível.
-- Exclusões de roletas e opções podem ser desfeitas pelo aviso, pelo botão da barra ou por Ctrl/Cmd+Z fora dos campos de edição. Até 20 exclusões ficam disponíveis durante a sessão; recarregar ou fechar o aviso limpa essa recuperação.
-
-## Configurações, listas e sessões
-
-- Configurações reúne duração do giro (4, 9 ou 14 segundos), volume, compartilhamento e instalação.
-- A duração do giro conta o tempo de animação exibida. Pausas da aba ou travamentos prolongam o sorteio em vez de fazê-lo saltar diretamente para o resultado.
-- Links compartilham uma cópia de uma roleta pelo fragmento do endereço, sem servidor. Não incluem histórico nem o progresso da rodada. Opções desativadas continuam desativadas na cópia. Há limite de 8.000 caracteres; para listas maiores, use backup. Quem recebe o link vê uma prévia antes de adicionar a roleta. O link não é criptografado.
-- O editor permite busca sem distinção de caixa/acentos, filtro de duplicados, seleção múltipla e exclusão em lote com desfazer.
-- CSV aceita uma opção por linha, vírgula, ponto e vírgula ou tabulação, aspas escapadas e cabeçalho opcional `nome,cor`. A coluna de cor é opcional e aceita hexadecimal de seis dígitos. Sem cabeçalho, é usada a primeira coluna. Limites: 5 MB, 500 opções por roleta e 100 caracteres por campo.
-- Até 20 sessões guardam combinações de até 6 roletas. Sessões também acompanham os backups; referências são reconstruídas ao importar ou recarregar.
-
-## Instalação e offline
-
-O build gera manifesto, ícones e service worker. A instalação depende do navegador: use “Instalar aplicativo” em Configurações ou a opção equivalente do menu do navegador. No Safari, use Compartilhar → Adicionar à Tela de Início.
-
-Depois do primeiro acesso online e da preparação do cache, as roletas abrem e funcionam offline. QR Code e diagnóstico são guardados após o primeiro uso online. Uma atualização fica pendente até a ação “Atualizar aplicativo”; giros e recuperação de dados bloqueiam a atualização. O worker só controla o próprio subcaminho e remove apenas caches do Volta nesse escopo. A disponibilidade offline depende de o navegador preservar seu cache.
-
-## Participações e resultados
-
-- O botão de olho ao lado de cada opção ativa ou desativa sua participação sem excluir os dados. Opções desativadas ficam fora dos giros simples, simultâneos e sequências. O estado acompanha backups e links; reiniciar uma rodada não reativa ausentes.
-- “Sortear vários vencedores” define a quantidade e executa um giro por participação, sem repetir IDs naquela sequência. Nomes iguais continuam sendo participações separadas. Com “Sem repetição” ativo, também são respeitados os sorteios anteriores da rodada.
-- “Parar após este giro” preserva os resultados concluídos e não inicia o próximo giro. O resumo completo fica disponível até trocar de roleta, começar outra sequência ou recarregar; o histórico continua limitado aos 20 últimos giros.
-- Resumos, resultado individual e histórico oferecem cópia e exportação CSV. O CSV inclui roleta, posição na lista exportada, opção e data UTC. O resumo usa ordem de sorteio; o histórico usa a ordem mais recente primeiro. Para preservar mais de 20 vencedores, exporte o resumo antes de sair.
-
-## Ordem, QR Code e surpresa
-
-- Em “Ferramentas da lista”, A–Z e Z–A ordenam por nome em português, com números em ordem natural; “Embaralhar” usa Fisher–Yates com a mesma fonte criptográfica dos sorteios. As ações abrangem a lista inteira, inclusive opções desativadas, e podem ser desfeitas sem perder edições posteriores. A ordem visual não altera as chances.
-- O ícone de QR Code fica ao lado das configurações. Gera uma cópia da roleta pelo mesmo link compartilhável, localmente, com opção de baixar PNG ou copiar o endereço. Para manter o código legível, o link tem limite de 1.400 caracteres; listas maiores continuam compartilháveis pelo link normal (até 8.000 caracteres) ou backup.
-- “Modo surpresa”, nas configurações, substitui os nomes da roda por `?` e revela cada vencedor no resultado. Funciona em giros simples, sequências e roletas simultâneas; a preferência fica neste navegador. É um efeito visual: editor, histórico, backups e links continuam contendo os nomes.
-- O gerador QR é carregado apenas ao abrir o compartilhamento. O arquivo é guardado para uso offline depois de aberto online pela primeira vez. O decodificador QR usado na validação é uma dependência exclusiva de testes.
-
-## Desempenho e diagnóstico local
-
-- Listas com mais de 50 opções usam páginas de 50 linhas. A busca continua abrangendo toda a lista, a seleção de filtradas pode incluir várias páginas e as alterações mantêm os índices corretos. Ao adicionar uma opção, o editor abre a página dela.
-- O histórico não provoca redesenho da roda quando os segmentos continuam iguais. A aparência compara IDs, nomes, ordem e cores; alterações visuais e rodadas sem repetição continuam redesenhando quando necessário.
-- O pré-cache guarda uma única cópia do HTML, os imports estáticos essenciais, CSS, manifesto e ícone de 192 px. QR, diagnóstico e ícones adicionais usam cache sob demanda. Uma função aberta antes de o worker assumir a página também é preparada para offline após a instalação. Módulos opcionais com o mesmo hash podem ser preservados ao atualizar; conteúdo de outros aplicativos não é removido.
-- Em Configurações → Desempenho, o usuário pode ativar o registro local de até 30 visitas e exportar JSON. A biblioteca `web-vitals` é carregada apenas com o registro ativado. FCP, LCP, CLS, TTFB e INP são guardados quando disponíveis, sem nomes de opções, URLs ou envio externo. INP exige interações e os valores locais não são o p75 da audiência.
-- Desativar interrompe a gravação; os observadores já carregados são liberados ao sair/recarregar. Nas próximas visitas, o módulo não é carregado. O diagnóstico pode ficar incompleto em abas abertas em segundo plano ou navegadores sem suporte.
-
-## Gerar equipes
-
-No editor de opções, abra “Gerar equipes” e escolha a quantidade de equipes ou o máximo de pessoas por equipe. A distribuição embaralha as participações com a mesma fonte criptográfica dos sorteios e equilibra os tamanhos, com diferença de no máximo uma pessoa. No modo de pessoas por equipe, o limite é respeitado e os participantes restantes são distribuídos entre as equipes.
-
-Todas as opções ativas participam, inclusive as já sorteadas na rodada; nomes iguais continuam sendo participações distintas. Busca e filtros do editor não limitam a geração. A ação não altera as opções, o histórico nem a rodada. É possível copiar as equipes ou exportar CSV. O resultado é uma cópia dos nomes no momento da geração e fica disponível até trocar de roleta ou recarregar; exporte antes de sair.
-
-## Pesos, modelos e apresentação personalizada
-
-- Cada opção aceita peso inteiro de 1 a 1.000, com padrão 1. A chance é seu peso dividido pela soma dos pesos elegíveis; o editor mostra a porcentagem e os setores da roda têm tamanhos proporcionais. Nomes iguais continuam sendo participações distintas. Pesos são respeitados em giros individuais, simultâneos e sequências sem repetição, além de backups e links. A geração de equipes continua distribuindo cada participação ativa uma única vez, independentemente do peso.
-- “Modelos prontos de roleta” oferece seis listas com prévia: participantes, tarefas da casa, perguntas, desafios, pausas e refeições. Usar um modelo adiciona uma roleta editável e preserva as existentes.
-- Configurações → Personalizar apresentação permite definir título do evento (80 caracteres), mensagem do resultado (120 caracteres) e fundo neutro, areia, céu ou menta. As preferências ficam neste navegador; não acompanham os backups nem links. O título e o tema aparecem no modo apresentação; a mensagem também aparece nos resultados individuais, simultâneos e no resumo de sequências nesse modo.
-
-## Histórico por sessão de sorteio
-
-Na aba Histórico, “Sessões de sorteio” permite iniciar uma sessão com nome, encerrá-la e consultar participantes, pesos, datas e todos os resultados em ordem de sorteio. O primeiro giro inicia uma sessão automaticamente. Alterar os participantes ativos, sua ordem, nomes ou pesos inicia outra sessão no próximo giro. O histórico recente de 20 resultados continua independente; limpá-lo não apaga as sessões.
-
-Cada roleta mantém até 20 sessões. O conjunto admite até 5.000 resultados e 10.000 participações arquivadas; ao alcançar o limite, os próximos giros são bloqueados até exportar e excluir sessões antigas. Sequências reservam espaço para todos os vencedores solicitados. Giros interrompidos não geram resultados. As sessões são salvas automaticamente e acompanham os backups JSON, inclusive após excluir participantes da lista; links compartilhados não incluem sessões. Os resultados de cada sessão podem ser copiados ou exportados em CSV. A exclusão de sessão pode ser desfeita durante a sessão de uso, respeitando os limites do conjunto.
+A pasta `dist` pode ser hospedada em qualquer servidor estático com HTTPS. O build gera CSP no HTML e `dist/_headers` para plataformas compatíveis.

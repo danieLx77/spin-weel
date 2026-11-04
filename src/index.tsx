@@ -1,7 +1,7 @@
+import { optionsForMode } from "./modes.mjs";
 import { weightedIndex, optionWeight, chanceText } from "./weighted.mjs";
 import { archiveBudget, MAX_DRAW_RESULTS, MAX_DRAW_PARTICIPANTS } from "./draw-sessions.mjs";
 import { DrawSessionsPanel, type DrawSession } from "./DrawSessionsPanel";
-import { TemplatePicker } from "./TemplatePicker";
 import { PresentationSettings, readPresentation, presentationThemes } from "./PresentationSettings";
 import { restoreDiagnostics } from "./performance-loader";
 import { optionPage, EDITOR_PAGE_SIZE } from "./render-state.mjs";
@@ -19,7 +19,6 @@ import {
 import {
   optionColors,
   renewOptionColors,
-  MAX_BACKUP_BYTES,
   MAX_TOTAL_OPTIONS,
   totalOptions,
 } from "./logic.mjs";
@@ -29,13 +28,12 @@ import {
   parseWorkspace,
   createShareLink,
   parseSharedWheel,
-  parseCSV,
   duplicateIds,
   normalize,
 } from "./extras.mjs";
 import { drawSequence } from "./results.mjs";
 import { ResultsActions, type SavedResult } from "./ResultsActions";
-import { TeamsPanel } from "./TeamsPanel";
+import { TeamsPanel, type TeamsHandle } from "./TeamsPanel";
 import { QrShare } from "./QrShare";
 import { reorderOptions, restoreOrder } from "./list-order.mjs";
 import { SettingsPanel } from "./SettingsPanel";
@@ -152,7 +150,7 @@ function App() {
   } catch {
     initial = defaults();
     initialError =
-      "Não foi possível ler os dados salvos. Importe um backup ou salve novamente.";
+      "Não foi possível ler as roletas salvas. Recarregue a página para tentar novamente.";
   }
   const [storageBlocked, setStorageBlocked] = createSignal(
     Boolean(initialError),
@@ -170,7 +168,7 @@ function App() {
     [notice, setNotice] = createSignal(initialError),
     [saveError, setSaveError] = createSignal(false),
     [reduced, setReduced] = createSignal(false);
-  const [mode, setMode] = createSignal<"single" | "multi">("single");
+  const [mode, setMode] = createSignal<"single" | "multi" | "weighted" | "teams">("single");
   const [selectedIds, setSelectedIds] = createSignal<string[]>(
     initial.slice(0, 3).map((w) => w.id),
   );
@@ -180,6 +178,23 @@ function App() {
   );
   const controllers = new Map<string, WheelHandle>();
   let singleWheel: WheelHandle;
+  let teamsController: TeamsHandle | undefined;
+  const drawingOptions = (w: Wheel) => optionsForMode(availableOptions(w), mode());
+  const shareableWheel = () => {
+    const w = active();
+    return w && (mode() === "single" || mode() === "weighted")
+      ? { ...w, options: optionsForMode(w.options, mode()) }
+      : undefined;
+  };
+  const changeMode = (next: "single" | "multi" | "weighted" | "teams") => {
+    if (spinning() || next === mode()) return;
+    teamsController = undefined;
+    setMode(next);
+    setTab("options");
+    setWinner(undefined);
+    setBatchSummary(false);
+    setBatchResults([]);
+  };
   const selectedWheels = () =>
     selectedIds().filter((id) => wheels().some((w) => w.id === id));
   const [search, setSearch] = createSignal("");
@@ -289,7 +304,7 @@ function App() {
       setMultiResults((old) => ({ ...old, [id]: "" }));
     }
   };
-  const participantSnapshot = (w: Wheel) => activeOptions(w).map((p: Option) => ({ id: p.id, label: p.label.trim() || "Sem nome", weight: optionWeight(p) }));
+  const participantSnapshot = (w: Wheel) => optionsForMode(activeOptions(w), mode()).map((p: Option) => ({ id: p.id, label: p.label.trim() || "Sem nome", weight: optionWeight(p) }));
   const sameParticipants = (a: DrawSession["participants"], b: DrawSession["participants"]) => a.length === b.length && a.every((p, i) => p.label === b[i].label && p.weight === b[i].weight);
   const prepareSession = (w: Wheel, count = 1, force = false, name = "") => {
     const participants = participantSnapshot(w);
@@ -298,10 +313,10 @@ function App() {
     const reuse = !force && previous && !previous.endedAt && sameParticipants(previous.participants, participants);
     const budget = archiveBudget(wheels());
     if (budget.results + count + runningIds().length > MAX_DRAW_RESULTS || budget.participants + (reuse ? 0 : participants.length) > MAX_DRAW_PARTICIPANTS) {
-      notify("O arquivo de sessões atingiu o limite. Exporte e exclua sessões antigas antes de continuar."); return false;
+      notify("O arquivo de sessões atingiu o limite. Copie os resultados e exclua sessões antigas antes de continuar."); return false;
     }
     if (reuse) return true;
-    if ((w.drawSessions?.length || 0) >= 20) { notify("Limite de 20 sessões nesta roleta. Exporte e exclua uma sessão antiga."); return false; }
+    if ((w.drawSessions?.length || 0) >= 20) { notify("Limite de 20 sessões nesta roleta. Copie os resultados e exclua uma sessão antiga."); return false; }
     const date = new Date().toISOString();
     const session: DrawSession = { id: uid(), name: name.trim().slice(0, 80) || `Sorteio ${new Date().toLocaleString("pt-BR")}`, startedAt: date, endedAt: null, participants, results: [] };
     setWheels((all) => all.map((wheel) => wheel.id === w.id ? { ...wheel, drawSessions: [...(wheel.drawSessions || []).map((s) => s.endedAt ? s : { ...s, endedAt: date }), session] } : wheel));
@@ -391,7 +406,7 @@ function App() {
     const w = wheels().find((w) => w.id === id),
       controller = controllers.get(id);
     if (!w || !canSpin(w) || !controller || runningIds().includes(id)) return;
-    const eligible = availableOptions(w);
+    const eligible = drawingOptions(w);
     if (!prepareSession(w)) return;
     const selected = eligible[weightedIndex(eligible)];
     setRunningIds((ids) => [...ids, id]);
@@ -409,7 +424,6 @@ function App() {
     if (spinning()) return;
     for (const id of selectedWheels()) void spinMulti(id);
   };
-  let file!: HTMLInputElement;
   let noticeTimer: ReturnType<typeof setTimeout>;
   const notify = (text: string) => {
     setNotice(text);
@@ -428,7 +442,7 @@ function App() {
   const select = (id: string) => {
     if (spinning()) return;
     setActiveId(id);
-    setMode("single");
+    setMode((previous) => previous === "multi" ? "single" : previous);
     setWinner(undefined);
     setTab("options");
   };
@@ -460,7 +474,7 @@ function App() {
       notify(
         error instanceof StorageConflictError
           ? error.message
-          : "Não foi possível salvar. Exporte um backup para preservar suas roletas.",
+          : "Não foi possível salvar. Mantenha esta aba aberta e libere espaço no navegador para tentar novamente.",
       );
     }
   };
@@ -537,6 +551,7 @@ function App() {
         return;
       e.preventDefault();
       if (mode() === "multi") spinAll();
+      else if (mode() === "teams") teamsController?.generate();
       else void spin();
     };
     const flushWhenHidden = () => {
@@ -591,7 +606,7 @@ function App() {
   const spin = async () => {
     const w = active();
     if (!w || !canSpin(w) || spinning() || !singleWheel) return;
-    const eligible = availableOptions(w);
+    const eligible = drawingOptions(w);
     if (!prepareSession(w)) return;
     const index = weightedIndex(eligible),
       selected = eligible[index];
@@ -627,7 +642,7 @@ function App() {
     prepareWheelSound();
     try {
       await drawSequence({
-        wheel: w,
+        wheel: { ...w, options: optionsForMode(w.options, mode()) },
         count,
         shouldStop: () => batchStopped() || disposed,
         spin: async (pool: Option[], index: number) => {
@@ -703,14 +718,6 @@ function App() {
       }
     }
   };
-  const createFromTemplate = (name: string, labels: string[]) => {
-    if (spinning()) return;
-    if (wheels().length >= 100 || totalOptions(wheels()) + labels.length > MAX_TOTAL_OPTIONS) { notify("Limite de roletas ou opções atingido."); return; }
-    const w = makeWheel(name, labels);
-    setWheels((all) => [...all, w]);
-    select(w.id);
-    notify("Modelo adicionado. Edite as opções para personalizar.");
-  };
   const create = () => {
     if (spinning()) return;
     if (totalOptions(wheels()) + 4 > MAX_TOTAL_OPTIONS) {
@@ -784,90 +791,11 @@ function App() {
     select(copy.id);
     notify("Roleta duplicada.");
   };
-  const exportData = () => {
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(snapshot(), null, 2)], {
-        type: "application/json",
-      }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "volta-backup.json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-  const importData = async (e: Event) => {
-    const input = e.target as HTMLInputElement;
-    const f = input.files?.[0];
-    if (!f) return;
-    try {
-      if (f.size > MAX_BACKUP_BYTES)
-        throw Error("O arquivo deve ter até 5 MB.");
-      const workspace = parseWorkspace(await f.text());
-      const loaded = workspace.wheels as Wheel[];
-      if (sessions().length + workspace.sessions.length > 20)
-        throw Error("Limite de 20 sessões atingido.");
-      if (totalOptions(wheels()) + totalOptions(loaded) > MAX_TOTAL_OPTIONS)
-        throw Error("O conjunto deve ter até 5.000 opções.");
-      if (wheels().length + loaded.length > 100)
-        throw Error("O total deve ser de até 100 roletas.");
-      const combinedBudget = archiveBudget([...wheels(), ...loaded]);
-      if (combinedBudget.results > MAX_DRAW_RESULTS || combinedBudget.participants > MAX_DRAW_PARTICIPANTS) throw Error("As sessões importadas excedem os limites de histórico do conjunto.");
-      if (spinning()) throw Error("Espere o giro terminar para importar.");
-      setWheels([...wheels(), ...loaded]);
-      setSessions((all) => [...all, ...(workspace.sessions as Session[])]);
-      if (loaded[0]) select(loaded[0].id);
-      notify(`${loaded.length} roleta(s) importada(s).`);
-    } catch (err) {
-      notify(err instanceof Error ? err.message : "Arquivo inválido.");
-    }
-    input.value = "";
-  };
-  const move = (index: number, delta: number) =>
-    update((w) => {
-      const opts = [...w.options];
-      [opts[index], opts[index + delta]] = [opts[index + delta], opts[index]];
-      return { ...w, options: opts };
-    });
-  let csvInput!: HTMLInputElement;
-  const importCSV = async (e: Event) => {
-    const input = e.target as HTMLInputElement,
-      f = input.files?.[0],
-      id = activeId();
-    if (!f) return;
-    try {
-      if (f.size > MAX_BACKUP_BYTES) throw Error("CSV deve ter até 5 MB.");
-      const rows = parseCSV(await f.text());
-      const wheel = wheels().find((w) => w.id === id);
-      if (spinning() || id !== activeId())
-        throw Error("Espere o giro terminar e tente novamente.");
-      if (
-        !wheel ||
-        wheel.options.length + rows.length > 500 ||
-        totalOptions(wheels()) + rows.length > MAX_TOTAL_OPTIONS
-      )
-        throw Error("Limite de opções atingido.");
-      const colors = optionColors(rows.length, [
-        ...wheel.options.map((o) => o.color),
-        ...rows.filter((o) => o.color).map((o) => o.color as string),
-      ]);
-      update((w) => ({
-        ...w,
-        options: [
-          ...w.options,
-          ...rows.map((row, i) => ({
-            id: uid(),
-            label: row.label as string,
-            color: row.color || colors[i],
-          })),
-        ],
-      }));
-      notify(`${rows.length} opções importadas.`);
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "CSV inválido.");
-    }
-    input.value = "";
-  };
+  const move = (index: number, delta: number) => update((w) => {
+    const options = [...w.options];
+    [options[index], options[index + delta]] = [options[index + delta], options[index]];
+    return { ...w, options };
+  });
   const removeSelected = () => {
     if (spinning()) return;
     const w = active();
@@ -988,7 +916,7 @@ function App() {
     });
   };
   const shareWheel = async () => {
-    const w = active();
+    const w = shareableWheel();
     if (!w) return;
     try {
       const url = createShareLink(w, location.href);
@@ -1046,27 +974,11 @@ function App() {
             )}
           </For>
         </nav>
-        <div class="sidebar-bottom">
-          <button onClick={exportData}>
-            <ActionIcon name="download" /> Exportar backup
-          </button>
-          <button disabled={spinning()} onClick={() => file.click()}>
-            <ActionIcon name="upload" /> Importar roletas
-          </button>
-          <input
-            ref={file}
-            type="file"
-            accept=".json,application/json"
-            class="hidden"
-            onChange={importData}
-          />
-        </div>
       </aside>
       <main>
         <Show when={saveError()}>
           <div class="save-failure" role="alert">
-            Não foi possível salvar. Exporte um backup para preservar suas
-            roletas.
+            Não foi possível salvar. Mantenha esta aba aberta e libere espaço no navegador para tentar novamente.
           </div>
         </Show>
         <Show when={storageBlocked()}>
@@ -1078,25 +990,10 @@ function App() {
             </p>
             <div>
               <button
-                disabled={!originalData}
-                onClick={() => {
-                  const url = URL.createObjectURL(
-                    new Blob([originalData], { type: "application/json" }),
-                  );
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "volta-dados-recuperacao.json";
-                  a.click();
-                  setTimeout(() => URL.revokeObjectURL(url), 1000);
-                }}
-              >
-                Baixar dados antigos
-              </button>
-              <button
                 onClick={() => {
                   if (
                     confirm(
-                      "Substituir os dados antigos pelas roletas atuais? Baixe os dados antigos antes de continuar.",
+                      "Substituir os dados antigos pelas roletas atuais? Os dados antigos serão apagados deste navegador.",
                     )
                   ) {
                     try {
@@ -1104,7 +1001,7 @@ function App() {
                       setStorageBlocked(false);
                     } catch {
                       notify(
-                        "O armazenamento não está disponível. Exporte um backup.",
+                        "O armazenamento não está disponível. Mantenha esta aba aberta para continuar usando suas roletas.",
                       );
                     }
                   }
@@ -1121,7 +1018,7 @@ function App() {
               aria-pressed={mode() === "single"}
               classList={{ active: mode() === "single" }}
               disabled={spinning()}
-              onClick={() => setMode("single")}
+              onClick={() => changeMode("single")}
             >
               <WheelIcon /> Uma roleta
             </button>
@@ -1129,9 +1026,15 @@ function App() {
               aria-pressed={mode() === "multi"}
               classList={{ active: mode() === "multi" }}
               disabled={spinning()}
-              onClick={() => setMode("multi")}
+              onClick={() => changeMode("multi")}
             >
               <GridIcon /> Roletas simultâneas
+            </button>
+            <button aria-pressed={mode() === "weighted"} classList={{ active: mode() === "weighted" }} disabled={spinning()} onClick={() => changeMode("weighted")}>
+              <ActionIcon name="weights" /> Roleta com pesos
+            </button>
+            <button aria-pressed={mode() === "teams"} classList={{ active: mode() === "teams" }} disabled={spinning()} onClick={() => changeMode("teams")}>
+              <ActionIcon name="teams" /> Gerar equipes
             </button>
           </div>
           <div class="view-actions">
@@ -1140,19 +1043,18 @@ function App() {
               volume={volume()}
               mystery={mystery()}
               onMystery={setMystery}
-              presentationSettings={<PresentationSettings value={presentationStyle()} onChange={setPresentationStyle} busy={spinning()} />}
               busy={spinning()}
               updateBlocked={saveError() || storageBlocked()}
-              canShare={mode() === "single" && Boolean(active())}
+              canShare={Boolean(shareableWheel())}
               onDuration={setDuration}
               onVolume={setVolume}
               onShare={shareWheel}
               onMessage={notify}
             />
-            <QrShare
-              wheel={mode() === "single" ? active() : undefined}
-              busy={spinning()}
-            />
+            <PresentationSettings value={presentationStyle()} onChange={setPresentationStyle} busy={spinning()} />
+            <Show when={shareableWheel()}>
+              <QrShare wheel={shareableWheel()} busy={spinning()} />
+            </Show>
             <Show when={undoStack().length}>
               <button
                 class="icon-button"
@@ -1210,7 +1112,6 @@ function App() {
           </div>
         </div>
         <Show when={presentation() && presentationStyle().title.trim()}><h1 class="presentation-event-title">{presentationStyle().title}</h1></Show>
-        <TemplatePicker busy={spinning()} onCreate={createFromTemplate} />
         <Show
           when={mode() === "multi"}
           fallback={
@@ -1274,10 +1175,11 @@ function App() {
                         </button>
                       </div>
                     </section>
-                    <div class="workspace-grid">
+                    <div class="workspace-grid" classList={{ "weighted-workspace": mode() === "weighted", "team-workspace": mode() === "teams" }}>
                       <section class="play-card">
+                        <Show when={mode() === "teams"} fallback={<>
                         <WheelVisual
-                          options={batchPool() ?? availableOptions(w())}
+                          options={batchPool() ?? drawingOptions(w())}
                           name={w().name}
                           reduced={reduced()}
                           duration={duration()}
@@ -1383,6 +1285,9 @@ function App() {
                             </div>
                           </Show>
                         </details>
+                        </>}>
+                          <TeamsPanel wheelId={w().id} name={w().name} options={w().options} busy={spinning()} reduced={reduced()} duration={duration()} mystery={mystery()} onBusy={setSpinning} register={(handle) => { teamsController = handle; }} />
+                        </Show>
                       </section>
                       <section class="editor-card">
                         <div
@@ -1400,6 +1305,7 @@ function App() {
                             )
                               return;
                             e.preventDefault();
+                            if (mode() === "teams") { setTab("options"); document.getElementById("tab-options")?.focus(); return; }
                             const next =
                               e.key === "Home"
                                 ? "options"
@@ -1421,8 +1327,9 @@ function App() {
                             class={tab() === "options" ? "active" : ""}
                             onClick={() => setTab("options")}
                           >
-                            Opções <span>{w().options.length}</span>
+                            {mode() === "teams" ? "Participantes" : "Opções"} <span>{w().options.length}</span>
                           </button>
+                          <Show when={mode() !== "teams"}>
                           <button
                             role="tab"
                             id="tab-history"
@@ -1434,6 +1341,7 @@ function App() {
                           >
                             Histórico <span>{w().history.length}</span>
                           </button>
+                          </Show>
                         </div>
                         <div
                           id="editor-panel"
@@ -1544,11 +1452,10 @@ function App() {
                               </div>
                               <div class="options-heading">
                                 <label class="field-label">
-                                  OPÇÕES DA ROLETA
+                                  {mode() === "teams" ? "PARTICIPANTES" : "OPÇÕES DA ROLETA"}
                                 </label>
                               </div>
-                              <p class="muted weight-help">Pesos de 1 a 1.000: peso 2 tem o dobro da chance de peso 1. As chances consideram apenas as opções elegíveis para o próximo giro.</p>
-                              <TeamsPanel wheelId={w().id} name={w().name} options={w().options} busy={spinning()} />
+                              <Show when={mode() === "weighted"}><p class="muted weight-help">Peso 2 tem o dobro da chance de peso 1. Ajuste os pesos de 1 a 1.000; as chances aparecem abaixo.</p></Show>
                               <input
                                 class="search-options"
                                 aria-label="Buscar opções"
@@ -1591,21 +1498,6 @@ function App() {
                                   >
                                     Embaralhar
                                   </button>
-                                  <button
-                                    type="button"
-                                    class="secondary-button"
-                                    disabled={spinning()}
-                                    onClick={() => csvInput.click()}
-                                  >
-                                    Importar CSV
-                                  </button>
-                                  <input
-                                    ref={csvInput}
-                                    type="file"
-                                    accept=".csv,text/csv"
-                                    class="hidden"
-                                    onChange={importCSV}
-                                  />
                                   <label>
                                     <input
                                       type="checkbox"
@@ -1743,7 +1635,7 @@ function App() {
                                           <input
                                             id={`option-${o().id}`}
                                             class="option-input"
-                                            aria-label={`Opção ${i() + 1}${o().disabled ? " (desativada)" : ""}`}
+                                            aria-label={`${mode() === "teams" ? "Participante" : "Opção"} ${i() + 1}${o().disabled ? " (desativada)" : ""}`}
                                             maxLength={100}
                                             value={o().label}
                                             onInput={(e) => {
@@ -1775,14 +1667,14 @@ function App() {
                                                 }));
                                             }}
                                           />
-                                          <label class="option-weight">Peso
+                                          <Show when={mode() === "weighted"}><label class="option-weight">Peso
                                             <input type="number" min="1" max="1000" step="1" value={o().weight ?? 1} aria-label={`Peso de ${o().label}`} onChange={(e) => {
                                               const weight = Number(e.currentTarget.value);
                                               if (!Number.isSafeInteger(weight) || weight < 1 || weight > 1000) { e.currentTarget.value = String(o().weight ?? 1); notify("Use um peso inteiro entre 1 e 1.000."); return; }
                                               update((x) => ({ ...x, options: x.options.map((p) => p.id === o().id ? { ...p, weight } : p) }));
                                             }} />
                                             <span>{chanceText(o(), w(), availableOptions(w()))}</span>
-                                          </label>
+                                          </label></Show>
                                           <button
                                             class="toggle-option"
                                             aria-pressed={!o().disabled}
@@ -2086,7 +1978,7 @@ function App() {
                       </div>
                     </div>
                     <WheelVisual
-                      options={availableOptions(wheel())}
+                      options={drawingOptions(wheel())}
                       name={wheel().name}
                       reduced={reduced()}
                       duration={duration()}
@@ -2183,6 +2075,7 @@ function App() {
                   setWheels((all) => [...all, w]);
                   setIncoming(undefined);
                   select(w.id);
+                  if (w.options.some((option) => (option.weight ?? 1) !== 1)) changeMode("weighted");
                 }}
               >
                 Adicionar roleta
