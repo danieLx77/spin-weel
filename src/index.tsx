@@ -81,18 +81,7 @@ const makeWheel = (name: string, labels: string[]): Wheel => {
   };
 };
 const defaults = () => [
-  makeWheel("O que vamos comer?", [
-    "Pizza",
-    "Hambúrguer",
-    "Sushi",
-    "Mexicana",
-    "Massa",
-    "Salada",
-    "Churrasco",
-    "Surpresa!",
-  ]),
-  makeWheel("Próximo destino", ["Praia", "Montanha", "Campo", "Cidade"]),
-  makeWheel("Quem começa?", ["Ana", "Bruno", "Clara", "Daniel"]),
+  makeWheel("Minha roleta", Array.from({ length: 8 }, (_, index) => `Opção ${index + 1}`)),
 ];
 function App() {
   let soundPreference = true;
@@ -437,6 +426,10 @@ function App() {
       return;
     }
     setWheels(next);
+  };
+  const renameWheel = (id: string, name: string) => {
+    if (spinning()) return;
+    setWheels((all) => all.map((wheel) => wheel.id === id ? { ...wheel, name: name.slice(0, 80) } : wheel));
   };
   const select = (id: string) => {
     if (spinning()) return;
@@ -1107,7 +1100,15 @@ function App() {
             </button>
           </div>
         </div>
-        <Show when={presentation() && presentationStyle().title.trim()}><h1 class="presentation-event-title">{presentationStyle().title}</h1></Show>
+        <Show when={presentation()}>
+          <div class="presentation-event-title">
+            <input class="presentation-inline-input presentation-title-input" aria-label="Título da apresentação" title="Clique para editar o título da apresentação" placeholder="Adicionar título" maxLength={80} value={presentationStyle().title} disabled={spinning()}
+              onInput={(e) => setPresentationStyle((style) => ({ ...style, title: e.currentTarget.value }))}
+              onFocus={(e) => e.currentTarget.select()}
+              onBlur={(e) => setPresentationStyle((style) => ({ ...style, title: e.currentTarget.value.trim() }))}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); e.stopPropagation(); } }} />
+          </div>
+        </Show>
         <Show
           when={mode() === "multi"}
           fallback={
@@ -1131,7 +1132,13 @@ function App() {
                   <>
                     <section class="page-heading">
                       <div>
-                        <h1>{w().name}</h1>
+                        <h1><Show when={presentation()} fallback={w().name}>
+                          <input class="presentation-inline-input" aria-label="Nome da roleta na apresentação" title="Clique para editar o nome da roleta" maxLength={80} value={w().name} disabled={spinning()}
+                            onInput={(e) => renameWheel(w().id, e.currentTarget.value)}
+                            onFocus={(e) => e.currentTarget.select()}
+                            onBlur={(e) => renameWheel(w().id, e.currentTarget.value.trim() || "Sem título")}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); e.stopPropagation(); } }} />
+                        </Show></h1>
                       </div>
                       <div class="heading-actions">
                         <button
@@ -1947,7 +1954,13 @@ function App() {
                 return (
                   <section class="play-card multi-card">
                     <div class="multi-card-heading">
-                      <h2>{wheel().name}</h2>
+                      <h2><Show when={presentation()} fallback={wheel().name}>
+                        <input class="presentation-inline-input" aria-label={`Nome da roleta ${wheel().name} na apresentação`} title="Clique para editar o nome da roleta" maxLength={80} value={wheel().name} disabled={spinning()}
+                          onInput={(e) => renameWheel(id, e.currentTarget.value)}
+                          onFocus={(e) => e.currentTarget.select()}
+                          onBlur={(e) => renameWheel(id, e.currentTarget.value.trim() || "Sem título")}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); e.stopPropagation(); } }} />
+                      </Show></h2>
                       <div class="multi-card-actions">
                         <button
                           class="card-action"

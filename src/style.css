@@ -521,11 +521,6 @@ h1 {
   border-radius: 50%;
   box-shadow: 0 2px 5px #00000012;
 }
-.wheel-center svg {
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
-}
 .wheel-center:hover:not(:disabled) {
   background: #f4f4f5;
   border-color: #71717a;
@@ -2455,3 +2450,22 @@ summary:focus-visible {
 @media (max-width: 900px) {
   .weighted-workspace .option-weight input { font-size: 16px; }
 }
+
+.presentation .page-heading > div:first-child { flex: 1; min-width: 0; }
+.presentation .presentation-inline-input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+.presentation .presentation-inline-input:hover:not(:disabled) { border-color: #a1a1aa; }
+.presentation .presentation-inline-input:focus-visible { border-color: currentColor; }
+.presentation .presentation-inline-input::placeholder { color: #52525b; opacity: 1; }
+.presentation .presentation-title-input { text-align: center; }

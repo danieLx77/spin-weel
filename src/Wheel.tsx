@@ -178,9 +178,6 @@ export function Wheel(props: {
           disabled={props.disabled}
           onClick={() => { if (!busy && !props.disabled) props.onSpin(); }}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m9 6 9 6-9 6Z" />
-          </svg>
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 # Volta
 
-Roletas simples para decidir, sortear e formar equipes. Feito com SolidJS, TypeScript, Tailwind CSS e Vite, sem conta ou servidor. As listas e os históricos são salvos automaticamente neste navegador.
+Roletas simples para decidir, sortear e formar equipes. Feito com SolidJS, TypeScript, Tailwind CSS e Vite, sem conta ou servidor. As listas e os históricos são salvos automaticamente neste navegador. No primeiro acesso, há apenas “Minha roleta”, com “Opção 1” a “Opção 8”. Listas já salvas são preservadas.
 
 ## Executar
 
@@ -35,7 +35,7 @@ Equipes consideram todas as opções ativas, inclusive as já sorteadas na rodad
 - Colar uma lista de nomes, buscar sem distinguir caixa ou acentos, ordenar A–Z/Z–A, embaralhar, filtrar duplicados e selecionar várias opções.
 - Ativar ou desativar participações sem excluí-las. Nomes duplicados são participações separadas.
 - Ajustar cores, renovar a paleta e reorganizar opções. A ordem visual não altera as chances.
-- Girar pelo botão central, pelo botão principal ou com Enter fora dos campos e controles.
+- Girar pelo botão central sem símbolo, pelo botão principal ou com Enter fora dos campos e controles.
 - Usar “Sem repetição” para retirar vencedores apenas da rodada. Reiniciar restaura as participações da rodada, sem reativar ausentes.
 - Sortear vários vencedores em sequência, sem repetir a mesma participação, nos modos de roleta individual e com pesos.
 - Copiar resultados e históricos como texto.
@@ -47,7 +47,7 @@ Não há importação ou exportação de arquivos JSON/CSV nem catálogo de mode
 
 A **engrenagem** abre duração do giro (4, 9 ou 14 segundos), volume, modo surpresa, compartilhamento, instalação e diagnóstico local.
 
-O ícone de **paleta**, separado da engrenagem, abre a personalização da apresentação: título do evento (80 caracteres), mensagem do resultado (120 caracteres) e fundo neutro, areia, céu ou menta. As preferências ficam neste navegador. O botão de tela cheia entra no modo apresentação, ocultando a navegação e o editor; Escape ou o botão de sair retornam ao modo normal.
+O ícone de **paleta**, separado da engrenagem, abre a personalização da apresentação: título do evento (80 caracteres), mensagem do resultado (120 caracteres) e fundo neutro, areia, céu ou menta. As preferências ficam neste navegador. O botão de tela cheia entra no modo apresentação, ocultando a navegação e o editor; Escape ou o botão de sair retornam ao modo normal. Nesse modo, clique no título do evento ou no nome de cada roleta para editar diretamente. Os campos aceitam até 80 caracteres e são salvos automaticamente; Enter encerra a edição. O título pode ficar vazio e nomes vazios de roleta voltam a “Sem título”. Durante o giro, os campos ficam desativados.
 
 Modo surpresa oculta os nomes na roda e revela os resultados. É um efeito visual: editor, histórico e links continuam contendo os nomes.
 
